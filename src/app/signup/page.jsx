@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { registerUser } from "../../lib/fakeAuth";
+import { registerUser } from "../../lib/auth";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function SignUpPage() {
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     setMessage("");
@@ -30,7 +30,7 @@ export default function SignUpPage() {
       return;
     }
 
-    const result = registerUser({
+    const result = await registerUser({
       name: name.trim(),
       email: email.trim(),
       password,
@@ -42,11 +42,11 @@ export default function SignUpPage() {
     }
 
     setIsSuccess(true);
-    setMessage("Account created successfully. Redirecting to login...");
+    setMessage("Account created successfully. Redirecting to messages...");
 
     setTimeout(() => {
-      router.push("/signin");
-    }, 1000);
+      router.push("/messages");
+    }, 1200);
   }
 
   return (

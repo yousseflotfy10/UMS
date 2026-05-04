@@ -2,34 +2,53 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import { getMessages, getProfessors, sendMessage } from "../../lib/fakeCommunity";
+import { getCurrentUser } from "../../lib/auth";
+import { getMessages, getProfessors, sendMessage } from "../../lib/community";
 
 export default function MessagesPage() {
   const router = useRouter();
 
   const [user, setUser] = useState(null);
   const [professor, setProfessor] = useState("");
+  const [professors, setProfessors] = useState([]);
   const [content, setContent] = useState("");
   const [messages, setMessages] = useState([]);
   const [feedback, setFeedback] = useState("");
-
-  const professors = getProfessors();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    let isMounted = true;
 
-    if (!currentUser) {
-      router.push("/signin");
-      return;
+    async function loadData() {
+      const currentUser = await getCurrentUser();
+      const professorRows = await getProfessors();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (!currentUser) {
+        router.push("/signin");
+        return;
+      }
+
+      setUser(currentUser);
+      setProfessors(professorRows);
+      if (professorRows.length > 0) {
+        setProfessor(professorRows[0].id);
+      }
+      setMessages(await getMessages());
+      setIsLoading(false);
     }
 
-    setUser(currentUser);
-    setProfessor(professors[0]);
-    setMessages(getMessages());
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
-  function handleSend(event) {
+  async function handleSend(event) {
     event.preventDefault();
     setFeedback("");
 
@@ -38,18 +57,30 @@ export default function MessagesPage() {
       return;
     }
 
-    const result = sendMessage({
-      sender: user.name,
-      senderEmail: user.email,
-      receiver: professor,
+    if (!user) {
+      setFeedback("Please sign in again.");
+      return;
+    }
+
+    if (!professor) {
+      setFeedback("Please select a professor.");
+      return;
+    }
+
+    const result = await sendMessage({
+      senderId: user.id,
+      receiverId: professor,
       content: content.trim(),
     });
 
     if (result.success) {
       setFeedback("Message sent successfully.");
       setContent("");
-      setMessages(getMessages());
+      setMessages(await getMessages());
+      return;
     }
+
+    setFeedback(result.message);
   }
 
   return (
@@ -60,22 +91,29 @@ export default function MessagesPage() {
         </header>
 
         <nav className="portal-tabs">
-          <a href="/dashboard">Dashboard</a>
+          <a href="/messages">Messages</a>
         </nav>
 
         <div className="portal-content">
           <div className="content-box">
             <h2>Messaging</h2>
 
+            {isLoading && <p>Loading messages...</p>}
+
             <form onSubmit={handleSend}>
               <select
                 className="form-select"
                 value={professor}
                 onChange={(event) => setProfessor(event.target.value)}
+                disabled={isLoading || professors.length === 0}
               >
+                <option value="" disabled>
+                  {isLoading ? "Loading professors..." : "Select professor"}
+                </option>
+
                 {professors.map((prof) => (
-                  <option key={prof} value={prof}>
-                    {prof}
+                  <option key={prof.id} value={prof.id}>
+                    {prof.name}
                   </option>
                 ))}
               </select>
@@ -99,15 +137,12 @@ export default function MessagesPage() {
             <div className="card-list">
               {messages.length === 0 && <p>No messages sent yet.</p>}
 
-              {messages
-                .slice()
-                .reverse()
-                .map((msg) => (
+              {messages.map((msg) => (
                   <div className="info-card" key={msg.id}>
-                    <h3>To: {msg.receiver}</h3>
+                    <h3>To: {msg.receiver_name}</h3>
                     <p>{msg.content}</p>
                     <p className="meta">
-                      Sent by {msg.sender} — {msg.date}
+                      Sent by {msg.sender_name} — {msg.date}
                     </p>
                   </div>
                 ))}
