@@ -11,18 +11,19 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  function handleLogin(e) {
-    e.preventDefault();
+  function handleLogin(event) {
+    event.preventDefault();
+    setMessage("");
 
-    if (!email || !password) {
-      setMessage("Please enter email and password");
+    if (!email.trim() || !password.trim()) {
+      setMessage("Please enter email and password.");
       return;
     }
 
-    const result = loginUser(email, password);
+    const result = loginUser(email.trim(), password);
 
     if (!result.success) {
-      setMessage("Invalid email or password");
+      setMessage("Invalid email or password.");
       return;
     }
 
@@ -36,6 +37,11 @@ export default function SignInPage() {
           <h1>UMS</h1>
         </header>
 
+        <nav className="portal-tabs">
+          <a href="/signin">Sign in</a>
+          <a href="/signup">Create account</a>
+        </nav>
+
         <div className="portal-content">
           <div className="login-area">
             <form onSubmit={handleLogin}>
@@ -43,7 +49,7 @@ export default function SignInPage() {
                 className="form-input"
                 placeholder="Email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
               />
 
               <input
@@ -51,13 +57,8 @@ export default function SignInPage() {
                 type="password"
                 placeholder="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
               />
-
-              <label className="checkbox-row">
-                <input type="checkbox" />
-                Remember username
-              </label>
 
               <button className="primary-btn">Log in</button>
 
@@ -65,7 +66,7 @@ export default function SignInPage() {
             </form>
 
             <div className="side-info">
-              <a href="/signup">Create account</a>
+              <a href="/signup">Create a new account</a>
               <a href="#">Forgotten your username or password?</a>
               <p>
                 Cookies must be enabled in your browser{" "}
