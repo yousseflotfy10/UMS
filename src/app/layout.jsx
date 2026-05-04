@@ -1,8 +1,8 @@
-import './globals.css';
+import "./globals.css";
 
 export const metadata = {
-  title: 'UMS - University Management System',
-  description: 'University Management System',
+  title: "University Management System",
+  description: "Sprint 1 auth implementation",
 };
 
 export default function RootLayout({ children }) {

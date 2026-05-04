@@ -1,0 +1,200 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.portal-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  background: #ffffff;
+  padding-top: 14px;
+}
+
+.portal-wrapper {
+  width: 90%;
+  max-width: 900px;
+  min-height: 520px;
+  border: 1px solid #d6d6d6;
+  background: #ffffff;
+}
+
+.portal-header {
+  text-align: center;
+  padding: 18px 10px 14px;
+  border-bottom: 1px solid #d6d6d6;
+  background: #f7f7f7;
+}
+
+.portal-header h1 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 300;
+  color: #1f2937;
+  letter-spacing: 1px;
+}
+
+.portal-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  padding: 22px 20px 0;
+}
+
+.portal-tabs a {
+  color: #006eff;
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.portal-tabs a:hover {
+  text-decoration: underline;
+}
+
+.portal-content {
+  padding: 38px 24px 44px;
+}
+
+.login-area {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 38px;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.form-input {
+  width: 100%;
+  height: 46px;
+  border: 1px solid #cbd5e1;
+  background: #eaf2ff;
+  padding: 0 14px;
+  font-size: 16px;
+  margin-bottom: 20px;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: #8ab4f8;
+}
+
+.primary-btn {
+  width: 100%;
+  height: 46px;
+  border: none;
+  background: #1976d2;
+  color: #ffffff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.primary-btn:hover {
+  background: #1565c0;
+}
+
+.side-info {
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.side-info a {
+  display: block;
+  color: #006eff;
+  text-decoration: none;
+  margin-bottom: 24px;
+}
+
+.side-info a:hover {
+  text-decoration: underline;
+}
+
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #55b9e9;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.message {
+  margin-top: 18px;
+  padding: 12px;
+  background: #f8dddd;
+  color: #7f1d1d;
+  border: 1px solid #111;
+  border-radius: 3px;
+}
+
+.message.success {
+  background: #e8f5e9;
+  color: #166534;
+  border-color: #166534;
+}
+
+.dashboard-box {
+  max-width: 650px;
+  margin: 0 auto;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.dashboard-box h2 {
+  margin-top: 0;
+  font-size: 30px;
+  font-weight: 400;
+  color: #1f2937;
+}
+
+.dashboard-box h3 {
+  font-size: 22px;
+  font-weight: 400;
+  color: #1f2937;
+}
+
+.dashboard-box ul {
+  margin-bottom: 28px;
+}
+
+.dashboard-box hr {
+  margin: 25px 0;
+  border: none;
+  border-top: 1px solid #d6d6d6;
+}
+
+.dashboard-actions {
+  max-width: 330px;
+  margin-top: 24px;
+}
+
+@media (max-width: 720px) {
+  .portal-wrapper {
+    width: 95%;
+  }
+
+  .portal-header h1 {
+    font-size: 26px;
+  }
+
+  .portal-tabs {
+    gap: 18px;
+  }
+
+  .login-area {
+    grid-template-columns: 1fr;
+  }
+
+  .side-info {
+    font-size: 16px;
+  }
+}
