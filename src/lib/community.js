@@ -14,20 +14,38 @@ export async function getProfessors() {
   return data ?? [];
 }
 
-export async function getMessages() {
+export async function getMessages(userId) {
   const { data, error } = await supabase
     .from("messages")
-    .select("id, sender_id, receiver_id, content, created_at, profiles:sender_id(name), profiles_receiver:receiver_id(name)")
+    .select("*")
+    .eq("sender_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) {
+    console.error("Error fetching messages:", error);
     return [];
   }
 
-  return (data ?? []).map((message) => ({
+  if (!data) {
+    return [];
+  }
+
+  // Fetch all profiles to map sender and receiver names
+  const { data: profiles, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, name");
+
+  const profileMap = {};
+  if (profiles) {
+    profiles.forEach((profile) => {
+      profileMap[profile.id] = profile.name;
+    });
+  }
+
+  return data.map((message) => ({
     ...message,
-    sender_name: message.profiles?.name || "Unknown",
-    receiver_name: message.profiles_receiver?.name || "Unknown",
+    sender_name: profileMap[message.sender_id] || "Unknown",
+    receiver_name: profileMap[message.receiver_id] || "Unknown",
     date: message.created_at
       ? new Date(message.created_at).toLocaleString()
       : "",
@@ -59,10 +77,10 @@ export async function sendMessage(message) {
     sender_id: message.senderId,
     receiver_id: message.receiverId,
     content: message.content,
-    created_at: new Date().toISOString(),
   });
 
   if (error) {
+    console.error("Error sending message:", error);
     return { success: false, message: error.message };
   }
 

@@ -37,7 +37,7 @@ export default function MessagesPage() {
       if (professorRows.length > 0) {
         setProfessor(professorRows[0].id);
       }
-      setMessages(await getMessages());
+      setMessages(await getMessages(currentUser.id));
       setIsLoading(false);
     }
 
@@ -76,7 +76,7 @@ export default function MessagesPage() {
     if (result.success) {
       setFeedback("Message sent successfully.");
       setContent("");
-      setMessages(await getMessages());
+      setMessages(await getMessages(user.id));
       return;
     }
 
@@ -142,7 +142,7 @@ export default function MessagesPage() {
                     <h3>To: {msg.receiver_name}</h3>
                     <p>{msg.content}</p>
                     <p className="meta">
-                      Sent by {msg.sender_name} — {msg.date}
+                      Sent by {user?.user_metadata?.full_name || user?.email || "Unknown"} — {msg.date}
                     </p>
                   </div>
                 ))}
