@@ -32,9 +32,10 @@ export default function DashboardPage() {
         </header>
 
         <nav className="portal-tabs">
+          <a href="/dashboard">Dashboard</a>
+          <a href="/messages">Messages</a>
           <a href="/signin">Sign in</a>
           <a href="/signup">Create account</a>
-          <a href="/dashboard">Dashboard</a>
         </nav>
 
         <div className="portal-content">
@@ -54,15 +55,7 @@ export default function DashboardPage() {
 
             <hr />
 
-            <h3>Sprint 1 Completed Features</h3>
-            <ul>
-              <li>User Sign Up</li>
-              <li>User Sign In</li>
-              <li>Required field validation</li>
-              <li>Duplicate account prevention</li>
-              <li>Invalid login error message</li>
-            </ul>
-
+           
             <div className="dashboard-actions">
               <button className="primary-btn" onClick={handleLogout}>
                 Log out

@@ -53,7 +53,7 @@ export default function SignUpPage() {
     <main className="portal-page">
       <div className="portal-wrapper">
         <header className="portal-header">
-          <h1>UMS</h1>
+          <h1>Ain Shams University - Faculty of Engineering</h1>
         </header>
 
         <nav className="portal-tabs">
