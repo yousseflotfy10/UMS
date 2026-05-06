@@ -39,7 +39,7 @@ export function loginUser(email, password) {
 
   localStorage.setItem("currentUser", JSON.stringify(user));
 
-  return { success: true };
+  return { success: true, user }; // ✅ FIX HERE
 }
 
 export function logoutUser() {

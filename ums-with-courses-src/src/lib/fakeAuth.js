@@ -42,6 +42,21 @@ export function loginUser(email, password) {
   return { success: true, user };
 }
 
+export function isAdmin() {
+  const user = getCurrentUser();
+  return user && user.role === "admin";
+}
+
+export function isProfessor() {
+  const user = getCurrentUser();
+  return user && user.role === "professor";
+}
+
+export function isStudent() {
+  const user = getCurrentUser();
+  return user && user.role === "student";
+}
+
 export function logoutUser() {
   localStorage.removeItem("currentUser");
 }

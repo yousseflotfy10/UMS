@@ -55,3 +55,30 @@ export function dropCourse(studentEmail, courseId) {
   localStorage.setItem("registrations", JSON.stringify(updated));
   return { success: true, message: "Course removed from registrations." };
 }
+export function addCourse(course) {
+  const courses = getCourses();
+
+  const exists = courses.find(
+    (item) => item.code.toLowerCase() === course.code.toLowerCase()
+  );
+
+  if (exists) {
+    return {
+      success: false,
+      message: "Course with this code already exists.",
+    };
+  }
+
+  const newCourse = {
+    id: Date.now(),
+    ...course,
+  };
+
+  courses.push(newCourse);
+  localStorage.setItem("courses", JSON.stringify(courses));
+
+  return {
+    success: true,
+    message: "Course added successfully.",
+  };
+}

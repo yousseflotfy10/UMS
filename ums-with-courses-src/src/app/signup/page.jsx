@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,6 +34,7 @@ export default function SignUpPage() {
       name: name.trim(),
       email: email.trim(),
       password,
+      role: "student", 
     });
 
     if (!result.success) {
@@ -108,3 +109,5 @@ export default function SignUpPage() {
     </main>
   );
 }
+
+

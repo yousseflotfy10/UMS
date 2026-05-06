@@ -27,7 +27,16 @@ export default function SignInPage() {
       return;
     }
 
-    router.push("/dashboard");
+    const user = result.user;
+
+    if (user.role === "admin") {
+      router.push("/adminDashboard");
+    } else if (user.role === "professor") {
+      router.push("/professorDashboard");
+    } else {
+      router.push("/dashboard");
+    }
+    
   }
 
   return (
