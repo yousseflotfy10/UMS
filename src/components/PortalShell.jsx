@@ -1,16 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { logoutUser, getCurrentUser } from "../lib/fakeAuth";
+import { logoutUser, getCurrentAppUser } from "../lib/auth";
 
 export default function PortalShell({ children, showLogout = true }) {
   const router = useRouter();
-  const user = getCurrentUser();
+  const [user, setUser] = useState(null);
   const role = user?.role || "student";
 
-  function logout(e) {
+  useEffect(() => {
+    async function loadUser() {
+      const current = await getCurrentAppUser();
+      setUser(current);
+    }
+    loadUser();
+  }, []);
+
+  async function logout(e) {
     e.preventDefault();
-    logoutUser();
+    await logoutUser();
     router.push("/signin");
   }
 

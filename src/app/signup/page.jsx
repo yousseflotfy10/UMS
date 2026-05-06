@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { registerUser } from "../../lib/fakeAuth";
+import { registerUser } from "../../lib/auth";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -10,17 +10,18 @@ export default function SignUpPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [studentId, setStudentId] = useState("");
 
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     setMessage("");
     setIsSuccess(false);
 
-    if (!name.trim() || !email.trim() || !password.trim()) {
+    if (!name.trim() || !email.trim() || !password.trim() || !studentId.trim()) {
       setMessage("Please fill all required fields.");
       return;
     }
@@ -30,10 +31,16 @@ export default function SignUpPage() {
       return;
     }
 
-    const result = registerUser({
+    if (!/^[0-9]{2}P[0-9]{4}$/i.test(studentId.trim())) {
+      setMessage("Student ID must follow format YYP#### (example: 23P0216).");
+      return;
+    }
+
+    const result = await registerUser({
       name: name.trim(),
       email: email.trim(),
       password,
+      studentId: studentId.trim().toUpperCase(),
       role: "student", 
     });
 
@@ -85,6 +92,13 @@ export default function SignUpPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+              />
+
+              <input
+                className="form-input"
+                placeholder="Student ID (YYP####)"
+                value={studentId}
+                onChange={(event) => setStudentId(event.target.value.toUpperCase())}
               />
 
               <button className="primary-btn">Create Account</button>

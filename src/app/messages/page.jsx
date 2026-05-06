@@ -3,49 +3,56 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import {
-  getMessagesForUser,
-  getProfessors,
-  getReplies,
-  sendMessage,
-} from "../../lib/fakeCommunity";
+import { getCurrentUser, getCurrentProfile } from "../../lib/auth";
+import { getMessages, getInbox, getProfessors, sendMessage } from "../../lib/community";
 
 export default function MessagesPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [professor, setProfessor] = useState("");
   const [content, setContent] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [replies, setReplies] = useState([]);
+  const [sent, setSent] = useState([]);
+  const [inbox, setInbox] = useState([]);
+  const [professors, setProfessors] = useState([]);
   const [feedback, setFeedback] = useState("");
-  const professors = getProfessors();
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const authUser = await getCurrentUser();
+      const profile = await getCurrentProfile?.();
 
-    if (!currentUser) {
-      router.push("/signin");
-      return;
+      if (!authUser) {
+        router.push("/signin");
+        return;
+      }
+
+      if (!profile || profile.role !== "student") {
+        router.push("/viewMessages");
+        return;
+      }
+
+      setUser({ id: authUser.id, name: profile.name, email: authUser.email, role: profile.role });
+
+      const profs = await getProfessors();
+      setProfessors(profs);
+      setProfessor(profs[0]?.id ?? "");
+
+      const sentMsgs = await getMessages(authUser.id);
+      setSent(sentMsgs || []);
+
+      const inboxMsgs = await getInbox(authUser.id);
+      setInbox(inboxMsgs || []);
     }
 
-    if (currentUser.role !== "student") {
-      router.push("/viewMessages");
-      return;
-    }
-
-    setUser(currentUser);
-    setProfessor(professors[0] || "");
-    setMessages(getMessagesForUser(currentUser));
-    setReplies(getReplies(currentUser.email));
+    init();
   }, [router]);
 
-  function handleSend(event) {
+  async function handleSend(event) {
     event.preventDefault();
     setFeedback("");
 
     if (!professor) {
-      setFeedback("Please select a doctor first.");
+      setFeedback("Please select a professor first.");
       return;
     }
 
@@ -54,24 +61,27 @@ export default function MessagesPage() {
       return;
     }
 
-    const result = sendMessage({
-      sender: user.name,
-      senderEmail: user.email,
-      receiver: professor,
+    const result = await sendMessage({
+      senderId: user.id,
+      receiverId: professor,
       content: content.trim(),
     });
 
     setFeedback(result.message);
     setContent("");
-    setMessages(getMessagesForUser(user));
-    setReplies(getReplies(user.email));
+
+    const sentMsgs = await getMessages(user.id);
+    setSent(sentMsgs || []);
+
+    const inboxMsgs = await getInbox(user.id);
+    setInbox(inboxMsgs || []);
   }
 
   return (
     <PortalShell>
       <div className="content-box">
         <h2>Messaging</h2>
-        <p>Send questions to your doctor and check replies in your inbox.</p>
+        <p>Send questions to your professor and check replies in your inbox.</p>
 
         <form onSubmit={handleSend}>
           <select
@@ -80,8 +90,8 @@ export default function MessagesPage() {
             onChange={(e) => setProfessor(e.target.value)}
           >
             {professors.map((prof) => (
-              <option key={prof} value={prof}>
-                {prof}
+              <option key={prof.id} value={prof.id}>
+                {prof.name}
               </option>
             ))}
           </select>
@@ -95,11 +105,7 @@ export default function MessagesPage() {
 
           <button className="primary-btn">Send Message</button>
           {feedback && (
-            <div
-              className={
-                feedback.includes("successfully") ? "message success" : "message"
-              }
-            >
+            <div className={feedback.includes("successfully") ? "message success" : "message"}>
               {feedback}
             </div>
           )}
@@ -108,42 +114,29 @@ export default function MessagesPage() {
         <div className="two-column-section">
           <section>
             <h3>Sent Messages</h3>
-            {messages.length === 0 && <p>No messages sent yet.</p>}
-            {messages
-              .slice()
-              .reverse()
-              .map((msg) => (
-                <div className="info-card" key={msg.id}>
-                  <h3>To: {msg.receiver}</h3>
-                  <p>{msg.content}</p>
-                  <p>
-                    <strong>Status:</strong> {msg.status || "unread"}
-                  </p>
-                  <p className="meta">
-                    Sent by {msg.sender} — {msg.date}
-                  </p>
-                </div>
-              ))}
+            {sent.length === 0 && <p>No messages sent yet.</p>}
+            {sent.slice().map((msg) => (
+              <div className="info-card" key={msg.id}>
+                <h3>To: {msg.receiver_name}</h3>
+                <p>{msg.content}</p>
+                <p>
+                  <strong>Status:</strong> {msg.status || "unread"}
+                </p>
+                <p className="meta">Sent: {msg.date}</p>
+              </div>
+            ))}
           </section>
 
           <section>
             <h3>Inbox</h3>
-            {replies.length === 0 && <p>No received messages yet.</p>}
-            {replies
-              .slice()
-              .reverse()
-              .map((reply) => (
-                <div className="info-card" key={reply.id}>
-                  <h3>From: {reply.professor}</h3>
-                  <p>{reply.content}</p>
-                  {reply.originalMessage && (
-                    <p>
-                      <strong>About:</strong> {reply.originalMessage}
-                    </p>
-                  )}
-                  <p className="meta">Received: {reply.date}</p>
-                </div>
-              ))}
+            {inbox.length === 0 && <p>No received messages yet.</p>}
+            {inbox.slice().map((reply) => (
+              <div className="info-card" key={reply.id}>
+                <h3>From: {reply.sender_name}</h3>
+                <p>{reply.content}</p>
+                <p className="meta">Received: {reply.date}</p>
+              </div>
+            ))}
           </section>
         </div>
       </div>

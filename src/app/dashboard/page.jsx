@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import { getRegistrations } from "../../lib/fakeCurriculum";
+import { getCurrentAppUser } from "../../lib/auth";
+import { getRegistrations } from "../../lib/community";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -12,13 +12,17 @@ export default function DashboardPage() {
   const [registrations, setRegistrations] = useState([]);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      router.push("/signin");
-      return;
+    async function init() {
+      const currentUser = await getCurrentAppUser();
+      if (!currentUser) {
+        router.push("/signin");
+        return;
+      }
+      setUser(currentUser);
+      const all = await getRegistrations();
+      setRegistrations(all.filter((item) => item.userId === currentUser.id));
     }
-    setUser(currentUser);
-    setRegistrations(getRegistrations(currentUser.email));
+    init();
   }, [router]);
 
   return (

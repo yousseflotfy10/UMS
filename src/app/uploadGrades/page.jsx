@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
+import { getCurrentAppUser } from "../../lib/auth";
 import {
   getAllRegistrations,
   getProfessorRegistrations,
   getRegistrationStats,
-} from "../../lib/fakeCurriculum";
-import { getGrades, uploadGrade } from "../../lib/fakeGrades";
+} from "../../lib/community";
+import { getGrades, uploadGrade } from "../../lib/grades";
 
 export default function UploadGradesPage() {
   const router = useRouter();
@@ -25,26 +25,29 @@ export default function UploadGradesPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
-      router.push("/signin");
-      return;
+      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+        router.push("/signin");
+        return;
+      }
+
+      const visibleCourses = await getRegistrationStats(
+        currentUser.role === "professor" ? currentUser.name : ""
+      );
+      const visibleRegistrations =
+        currentUser.role === "professor"
+          ? await getProfessorRegistrations(currentUser.name)
+          : await getAllRegistrations();
+
+      setUser(currentUser);
+      setCourses(visibleCourses);
+      setRegistrations(visibleRegistrations);
+      setGrades(await getGrades());
+      setCourseCode(visibleCourses[0]?.code || "");
     }
-
-    const visibleCourses = getRegistrationStats(
-      currentUser.role === "professor" ? currentUser.name : ""
-    );
-    const visibleRegistrations =
-      currentUser.role === "professor"
-        ? getProfessorRegistrations(currentUser.name)
-        : getAllRegistrations();
-
-    setUser(currentUser);
-    setCourses(visibleCourses);
-    setRegistrations(visibleRegistrations);
-    setGrades(getGrades());
-    setCourseCode(visibleCourses[0]?.code || "");
+    init();
   }, [router]);
 
   const studentsForSelectedCourse = useMemo(() => {
@@ -55,7 +58,7 @@ export default function UploadGradesPage() {
     );
   }, [registrations, courseCode]);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setMessage("");
 
@@ -75,20 +78,20 @@ export default function UploadGradesPage() {
       return;
     }
 
-    const result = uploadGrade({
+    const result = await uploadGrade({
       studentName: selectedStudent.studentName || "Student",
       studentEmail: selectedStudent.studentEmail,
       courseCode: selectedStudent.courseCode,
       courseName: selectedStudent.courseName,
       grade: grade.trim(),
       feedback: feedback.trim(),
-      uploadedBy: user?.name,
+      uploadedBy: user?.id,
     });
 
     setMessage(result.message);
 
     if (result.success) {
-      setGrades(getGrades());
+      setGrades(await getGrades());
       setStudentEmail("");
       setGrade("");
       setFeedback("");

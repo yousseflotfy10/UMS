@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser, getProfessors } from "../../lib/fakeAuth";
-import { getCourses, addCourse } from "../../lib/fakeCurriculum";
+import { getCurrentAppUser, getProfessors } from "../../lib/auth";
+import { getCourses, addCourse } from "../../lib/community";
 
 export default function AddCoursesPage() {
   const router = useRouter();
@@ -20,20 +20,24 @@ export default function AddCoursesPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || currentUser.role !== "admin") {
-      router.push("/signin");
-      return;
+      if (!currentUser || currentUser.role !== "admin") {
+        router.push("/signin");
+        return;
+      }
+
+      const professorUsers = await getProfessors();
+      setCourses(await getCourses());
+      setProfessors(professorUsers);
+      setProfessor(professorUsers[0]?.name || "");
     }
 
-    const professorUsers = getProfessors();
-    setCourses(getCourses());
-    setProfessors(professorUsers);
-    setProfessor(professorUsers[0]?.name || "");
+    init();
   }, [router]);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
 
@@ -49,7 +53,7 @@ export default function AddCoursesPage() {
       return;
     }
 
-    const result = addCourse({
+    const result = await addCourse({
       name,
       code,
       department,
@@ -61,7 +65,7 @@ export default function AddCoursesPage() {
     setMessage(result.message);
 
     if (result.success) {
-      setCourses(getCourses());
+      setCourses(await getCourses());
       setName("");
       setCode("");
       setDepartment("");

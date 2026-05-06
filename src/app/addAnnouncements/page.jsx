@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
+import { getCurrentAppUser } from "../../lib/auth";
 import {
   getAnnouncements,
   getProfessors,
   addAnnouncement,
-} from "../../lib/fakeCommunity";
-import { getCourses, getRegistrationStats } from "../../lib/fakeCurriculum";
+  getRegistrationStats,
+  getCourses,
+} from "../../lib/community";
 
 export default function AddAnnouncementsPage() {
   const router = useRouter();
@@ -25,28 +26,33 @@ export default function AddAnnouncementsPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
-      router.push("/signin");
-      return;
+      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+        router.push("/signin");
+        return;
+      }
+
+      const visibleCourses =
+        currentUser.role === "professor"
+          ? await getRegistrationStats(currentUser.name)
+          : await getCourses();
+
+      setUser(currentUser);
+      const profs = await getProfessors();
+      setProfessors(profs.map((item) => item.name));
+      setProfessor(currentUser.role === "professor" ? currentUser.name : "");
+      setCourses(visibleCourses);
+      setAnnouncements(
+        (await getAnnouncements()).sort((a, b) => new Date(b.date) - new Date(a.date))
+      );
     }
 
-    const visibleCourses =
-      currentUser.role === "professor"
-        ? getRegistrationStats(currentUser.name)
-        : getCourses();
-
-    setUser(currentUser);
-    setProfessors(getProfessors());
-    setProfessor(currentUser.role === "professor" ? currentUser.name : "");
-    setCourses(visibleCourses);
-    setAnnouncements(
-      getAnnouncements().sort((a, b) => new Date(b.date) - new Date(a.date))
-    );
+    init();
   }, [router]);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setMessage("");
 
@@ -55,7 +61,7 @@ export default function AddAnnouncementsPage() {
       return;
     }
 
-    const result = addAnnouncement({
+    const result = await addAnnouncement({
       professor,
       title,
       content,
@@ -66,7 +72,7 @@ export default function AddAnnouncementsPage() {
 
     if (result.success) {
       setAnnouncements(
-        getAnnouncements().sort((a, b) => new Date(b.date) - new Date(a.date))
+        (await getAnnouncements()).sort((a, b) => new Date(b.date) - new Date(a.date))
       );
 
       if (user?.role === "admin") setProfessor("");

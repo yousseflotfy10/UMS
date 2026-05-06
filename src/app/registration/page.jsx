@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import { getCourses, getRegistrations, registerCourse } from "../../lib/fakeCurriculum";
+import { getCurrentAppUser } from "../../lib/auth";
+import { getCourses, getRegistrations, registerCourse } from "../../lib/community";
 
 export default function CourseRegistrationPage() {
   const router = useRouter();
@@ -14,26 +14,31 @@ export default function CourseRegistrationPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || currentUser.role !== "student") {
-      router.push("/signin");
-      return;
+      if (!currentUser || currentUser.role !== "student") {
+        router.push("/signin");
+        return;
+      }
+
+      setUser(currentUser);
+      setCourses(await getCourses());
+      const allRegs = await getRegistrations();
+      setRegistrations(allRegs.filter((item) => item.userId === currentUser.id));
     }
-
-    setUser(currentUser);
-    setCourses(getCourses());
-    setRegistrations(getRegistrations(currentUser.email));
+    init();
   }, [router]);
 
   function isRegistered(courseId) {
     return registrations.some((item) => item.courseId === courseId);
   }
 
-  function handleRegister(courseId) {
-    const result = registerCourse(user, courseId);
+  async function handleRegister(courseId) {
+    const result = await registerCourse(user, courseId);
     setMessage(result.message);
-    setRegistrations(getRegistrations(user.email));
+    const allRegs = await getRegistrations();
+    setRegistrations(allRegs.filter((item) => item.userId === user.id));
   }
 
   return (

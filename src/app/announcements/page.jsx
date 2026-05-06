@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import { getVisibleAnnouncements } from "../../lib/fakeCommunity";
+import { getCurrentAppUser } from "../../lib/auth";
+import { getVisibleAnnouncements as getVisibleAnnouncementsReal } from "../../lib/community";
 
 export default function AnnouncementsPage() {
   const router = useRouter();
@@ -12,19 +12,21 @@ export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState([]);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser) {
-      router.push("/signin");
-      return;
+      if (!currentUser) {
+        router.push("/signin");
+        return;
+      }
+
+      setUser(currentUser);
+      const visible = await getVisibleAnnouncementsReal(currentUser);
+      setAnnouncements(
+        visible.sort((a, b) => new Date(b.date) - new Date(a.date))
+      );
     }
-
-    setUser(currentUser);
-    setAnnouncements(
-      getVisibleAnnouncements(currentUser).sort(
-        (a, b) => new Date(b.date) - new Date(a.date)
-      )
-    );
+    init();
   }, [router]);
 
   return (

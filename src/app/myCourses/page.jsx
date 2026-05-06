@@ -3,22 +3,26 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import { getRegistrations } from "../../lib/fakeCurriculum";
+import { getCurrentAppUser } from "../../lib/auth";
+import { getRegistrations } from "../../lib/community";
 
 export default function MyCoursesPage() {
   const router = useRouter();
   const [registeredCourses, setRegisteredCourses] = useState([]);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || currentUser.role !== "student") {
-      router.push("/signin");
-      return;
+      if (!currentUser || currentUser.role !== "student") {
+        router.push("/signin");
+        return;
+      }
+
+      const all = await getRegistrations();
+      setRegisteredCourses(all.filter((item) => item.userId === currentUser.id));
     }
-
-    setRegisteredCourses(getRegistrations(currentUser.email));
+    init();
   }, [router]);
 
   return (

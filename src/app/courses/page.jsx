@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import { getCourses, getRegistrations, registerCourse, dropCourse } from "../../lib/fakeCurriculum";
+import { getCurrentAppUser } from "../../lib/auth";
+import { getCourses, getRegistrations, registerCourse, dropCourse } from "../../lib/community";
 
 export default function CoursesPage() {
   const router = useRouter();
@@ -14,30 +14,38 @@ export default function CoursesPage() {
   const [feedback, setFeedback] = useState("");
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      router.push("/signin");
-      return;
+    async function init() {
+      const currentUser = await getCurrentAppUser();
+      if (!currentUser) {
+        router.push("/signin");
+        return;
+      }
+      setUser(currentUser);
+      const data = await getCourses();
+      setCourses(data || []);
+      const regs = await getRegistrations();
+      setRegistrations(regs.filter((r) => r.userId === currentUser.id));
     }
-    setUser(currentUser);
-    setCourses(getCourses());
-    setRegistrations(getRegistrations(currentUser.email));
+
+    init();
   }, [router]);
 
   function isRegistered(courseId) {
     return registrations.some((item) => item.courseId === courseId);
   }
 
-  function handleRegister(courseId) {
-    const result = registerCourse(user, courseId);
+  async function handleRegister(courseId) {
+    const result = await registerCourse(user, courseId);
     setFeedback(result.message);
-    setRegistrations(getRegistrations(user.email));
+    const regs = await getRegistrations();
+    setRegistrations(regs.filter((r) => r.userId === user.id));
   }
 
-  function handleDrop(courseId) {
-    const result = dropCourse(user, courseId);
+  async function handleDrop(courseId) {
+    const result = await dropCourse(user, courseId);
     setFeedback(result.message);
-    setRegistrations(getRegistrations(user.email));
+    const regs = await getRegistrations();
+    setRegistrations(regs.filter((r) => r.userId === user.id));
   }
 
   return (

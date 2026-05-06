@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "../../lib/fakeAuth";
+import { loginUser } from "../../lib/auth";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -11,7 +11,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   setMessage("");
 
@@ -20,7 +20,7 @@ function handleLogin(event) {
     return;
   }
 
-  const result = loginUser(email.trim(), password);
+  const result = await loginUser(email.trim(), password);
 
   // ✅ STOP if login failed
   if (!result.success || !result.user) {

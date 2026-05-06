@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { logoutUser } from "../lib/fakeAuth";
+import { logoutUser } from "../lib/auth";
 
 export default function AppShell({ children, title, subtitle }) {
   const router = useRouter();
 
-  function logout() {
-    logoutUser();
+  async function logout() {
+    await logoutUser();
     router.push("/signin");
   }
 

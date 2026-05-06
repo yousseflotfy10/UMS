@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
+import { getCurrentAppUser } from "../../lib/auth";
 import {
   getAllRegistrations,
   getCourses,
   getProfessorRegistrations,
   getRegistrationStats,
-} from "../../lib/fakeCurriculum";
+} from "../../lib/community";
 
 export default function StudentRegistrationsPage() {
   const router = useRouter();
@@ -19,25 +19,28 @@ export default function StudentRegistrationsPage() {
   const [selectedCourse, setSelectedCourse] = useState("all");
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
-      router.push("/signin");
-      return;
+      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+        router.push("/signin");
+        return;
+      }
+
+      const visibleCourses = await getRegistrationStats(
+        currentUser.role === "professor" ? currentUser.name : ""
+      );
+
+      const visibleRegistrations =
+        currentUser.role === "professor"
+          ? await getProfessorRegistrations(currentUser.name)
+          : await getAllRegistrations();
+
+      setUser(currentUser);
+      setCourses(visibleCourses.length ? visibleCourses : await getCourses());
+      setRegistrations(visibleRegistrations);
     }
-
-    const visibleCourses = getRegistrationStats(
-      currentUser.role === "professor" ? currentUser.name : ""
-    );
-
-    const visibleRegistrations =
-      currentUser.role === "professor"
-        ? getProfessorRegistrations(currentUser.name)
-        : getAllRegistrations();
-
-    setUser(currentUser);
-    setCourses(visibleCourses.length ? visibleCourses : getCourses());
-    setRegistrations(visibleRegistrations);
+    init();
   }, [router]);
 
   const filteredRegistrations = useMemo(() => {

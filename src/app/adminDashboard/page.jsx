@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser, logoutUser, getStudents, getProfessors } from "../../lib/fakeAuth";
-import { getMessages } from "../../lib/fakeCommunity";
-import { getAllRegistrations, getCourses } from "../../lib/fakeCurriculum";
+import { getCurrentAppUser, logoutUser, getStudents, getProfessors } from "../../lib/auth";
+import { getMessagesForUser, getAllRegistrations, getCourses } from "../../lib/community";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -19,25 +18,33 @@ export default function AdminDashboardPage() {
   });
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || currentUser.role !== "admin") {
-      router.push("/signin");
-      return;
+      if (!currentUser || currentUser.role !== "admin") {
+        router.push("/signin");
+        return;
+      }
+
+      setUser(currentUser);
+      const students = await getStudents();
+      const professors = await getProfessors();
+      const courses = await getCourses();
+      const registrations = await getAllRegistrations();
+      const messages = await getMessagesForUser(currentUser);
+      setSummary({
+        students: students.length,
+        professors: professors.length,
+        courses: courses.length,
+        registrations: registrations.length,
+        messages: messages.length,
+      });
     }
-
-    setUser(currentUser);
-    setSummary({
-      students: getStudents().length,
-      professors: getProfessors().length,
-      courses: getCourses().length,
-      registrations: getAllRegistrations().length,
-      messages: getMessages().length,
-    });
+    init();
   }, [router]);
 
-  function handleLogout() {
-    logoutUser();
+  async function handleLogout() {
+    await logoutUser();
     router.push("/signin");
   }
 

@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from "react";
 import PortalShell from "../../components/PortalShell";
-import { getClassrooms, getBookings } from "../../lib/fakeBooking";
+import { getClassrooms, getBookings } from "../../lib/booking";
 
 export default function ViewBookingPage() {
   const [classrooms, setClassrooms] = useState([]);
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    setClassrooms(getClassrooms());
-    setBookings(getBookings());
+    async function init() {
+      const rooms = await getClassrooms();
+      setClassrooms((rooms || []).map((room) => room.name));
+      setBookings(await getBookings());
+    }
+    init();
   }, []);
 
   function isRoomBooked(room) {

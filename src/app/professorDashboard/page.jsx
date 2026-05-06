@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser, logoutUser } from "../../lib/fakeAuth";
-import { getMessagesForUser } from "../../lib/fakeCommunity";
+import { getCurrentAppUser, logoutUser } from "../../lib/auth";
 import {
+  getMessagesForUser,
   getProfessorRegistrations,
   getRegistrationStats,
-} from "../../lib/fakeCurriculum";
+} from "../../lib/community";
 
 export default function ProfessorDashboard() {
   const router = useRouter();
@@ -18,21 +18,24 @@ export default function ProfessorDashboard() {
   const [courseStats, setCourseStats] = useState([]);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || currentUser.role !== "professor") {
-      router.push("/signin");
-      return;
+      if (!currentUser || currentUser.role !== "professor") {
+        router.push("/signin");
+        return;
+      }
+
+      setUser(currentUser);
+      setMessages(await getMessagesForUser(currentUser));
+      setRegistrations(await getProfessorRegistrations(currentUser.name));
+      setCourseStats(await getRegistrationStats(currentUser.name));
     }
-
-    setUser(currentUser);
-    setMessages(getMessagesForUser(currentUser));
-    setRegistrations(getProfessorRegistrations(currentUser.name));
-    setCourseStats(getRegistrationStats(currentUser.name));
+    init();
   }, [router]);
 
-  function handleLogout() {
-    logoutUser();
+  async function handleLogout() {
+    await logoutUser();
     router.push("/signin");
   }
 

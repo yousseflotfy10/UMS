@@ -2,27 +2,30 @@
 
 import { useEffect, useState } from "react";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
-import { getGrades } from "../../lib/fakeGrades";
+import { getCurrentAppUser } from "../../lib/auth";
+import { getGrades } from "../../lib/grades";
 
 export default function ViewGradesPage() {
   const [user, setUser] = useState(null);
   const [grades, setGrades] = useState([]);
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
+    async function init() {
+      const currentUser = await getCurrentAppUser();
+      setUser(currentUser);
 
-    if (currentUser) {
-      const allGrades = getGrades();
-      const myGrades = allGrades.filter(
-        (grade) =>
-          grade.studentEmail.toLowerCase() ===
-          currentUser.email.toLowerCase()
-      );
+      if (currentUser) {
+        const allGrades = await getGrades();
+        const myGrades = allGrades.filter(
+          (grade) =>
+            (grade.studentEmail || "").toLowerCase() ===
+            (currentUser.email || "").toLowerCase()
+        );
 
-      setGrades(myGrades);
+        setGrades(myGrades);
+      }
     }
+    init();
   }, []);
 
   return (

@@ -6,11 +6,15 @@ import {
   getClassrooms,
   getBookings,
   bookClassroom,
-} from "../../lib/fakeBooking";
+  getTimeSlots,
+} from "../../lib/booking";
+import { getCurrentAppUser } from "../../lib/auth";
 
 export default function BookingPage() {
   const [classrooms, setClassrooms] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [user, setUser] = useState(null);
+  const [timeSlots, setTimeSlots] = useState([]);
 
   const [classroom, setClassroom] = useState("");
   const [date, setDate] = useState("");
@@ -19,11 +23,17 @@ export default function BookingPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setClassrooms(getClassrooms());
-    setBookings(getBookings());
+    async function init() {
+      setUser(await getCurrentAppUser());
+      const rooms = await getClassrooms();
+      setClassrooms((rooms || []).map((room) => room.name));
+      setBookings(await getBookings());
+      setTimeSlots(await getTimeSlots());
+    }
+    init();
   }, []);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     if (!classroom || !date || !timeSlot || !purpose) {
@@ -31,17 +41,17 @@ export default function BookingPage() {
       return;
     }
 
-    const result = bookClassroom({
+    const result = await bookClassroom({
       classroom,
       date,
       timeSlot,
       purpose,
-    });
+    }, user?.id);
 
     setMessage(result.message);
 
     if (result.success) {
-      setBookings(getBookings());
+      setBookings(await getBookings());
       setClassroom("");
       setDate("");
       setTimeSlot("");
@@ -87,10 +97,11 @@ export default function BookingPage() {
             onChange={(e) => setTimeSlot(e.target.value)}
           >
             <option value="">Select time slot</option>
-            <option value="08:00 - 10:00">08:00 - 10:00</option>
-            <option value="10:00 - 12:00">10:00 - 12:00</option>
-            <option value="12:00 - 02:00">12:00 - 02:00</option>
-            <option value="02:00 - 04:00">02:00 - 04:00</option>
+            {timeSlots.map((slot) => (
+              <option key={slot.id} value={slot.label}>
+                {slot.label}
+              </option>
+            ))}
           </select>
 
           <textarea

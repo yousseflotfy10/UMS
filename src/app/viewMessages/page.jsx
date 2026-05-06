@@ -3,39 +3,44 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getCurrentUser } from "../../lib/fakeAuth";
+import { getCurrentAppUser } from "../../lib/auth";
 import {
   getMessagesForUser,
   replyToMessage,
-} from "../../lib/fakeCommunity";
-import { getRegistrations } from "../../lib/fakeCurriculum";
+  getRegistrations,
+} from "../../lib/community";
 
 export default function ViewMessagesPage() {
   const router = useRouter();
 
   const [user, setUser] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [replyText, setReplyText] = useState({});
   const [feedback, setFeedback] = useState("");
 
   useEffect(() => {
-    const currentUser = getCurrentUser();
+    async function init() {
+      const currentUser = await getCurrentAppUser();
 
-    if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
-      router.push("/signin");
-      return;
+      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+        router.push("/signin");
+        return;
+      }
+
+      setUser(currentUser);
+      setMessages(await getMessagesForUser(currentUser));
+      setRegistrations(await getRegistrations());
     }
-
-    setUser(currentUser);
-    setMessages(getMessagesForUser(currentUser));
+    init();
   }, [router]);
 
-  function refreshMessages(currentUser = user) {
+  async function refreshMessages(currentUser = user) {
     if (!currentUser) return;
-    setMessages(getMessagesForUser(currentUser));
+    setMessages(await getMessagesForUser(currentUser));
   }
 
-  function handleReply(message) {
+  async function handleReply(message) {
     const content = replyText[message.id];
 
     if (!content || !content.trim()) {
@@ -43,7 +48,7 @@ export default function ViewMessagesPage() {
       return;
     }
 
-    const result = replyToMessage({
+    const result = await replyToMessage({
       professor: user.name,
       studentEmail: message.senderEmail,
       content: content.trim(),
@@ -56,7 +61,7 @@ export default function ViewMessagesPage() {
       ...replyText,
       [message.id]: "",
     });
-    refreshMessages();
+    await refreshMessages();
   }
 
   return (
@@ -86,7 +91,9 @@ export default function ViewMessagesPage() {
           .slice()
           .reverse()
           .map((message) => {
-            const studentCourses = getRegistrations(message.senderEmail);
+            const studentCourses = registrations.filter(
+              (item) => (item.studentEmail || "").toLowerCase() === (message.senderEmail || "").toLowerCase()
+            );
 
             return (
               <div className="info-card" key={message.id}>
