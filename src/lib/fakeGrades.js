@@ -1,35 +1,15 @@
-const DEFAULT_COURSES = [
-  { id: 1, code: "CSE233", name: "Agile Software Engineering" },
-  { id: 2, code: "CSE323", name: "Advanced Embedded Systems" },
-  { id: 3, code: "CSE354", name: "Distributed Computing" },
-];
-
-const DEFAULT_STUDENTS = [
-  { id: 1, name: "Jana Tamer", email: "jana@student.com" },
-  { id: 2, name: "Ali Ibrahim", email: "ali@student.com" },
-  { id: 3, name: "Youssef Lotfy", email: "youssef@student.com" },
-];
-
 const DEFAULT_GRADES = [
   {
     id: 1,
     studentName: "Jana Tamer",
     studentEmail: "jana@student.com",
-    courseCode: "CSE233",
-    courseName: "Agile Software Engineering",
+    courseCode: "SE301",
+    courseName: "Software Engineering",
     grade: "A",
     feedback: "Excellent work",
     date: "2026-05-06",
   },
 ];
-
-export function getCourses() {
-  return DEFAULT_COURSES;
-}
-
-export function getStudents() {
-  return DEFAULT_STUDENTS;
-}
 
 export function getGrades() {
   const stored = localStorage.getItem("grades");
@@ -61,7 +41,7 @@ export function uploadGrade(gradeData) {
   const newGrade = {
     id: Date.now(),
     ...gradeData,
-    date: new Date().toISOString().split("T")[0],
+    date: new Date().toLocaleString(),
   };
 
   grades.push(newGrade);

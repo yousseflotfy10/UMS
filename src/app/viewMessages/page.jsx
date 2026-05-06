@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
 import { getCurrentUser } from "../../lib/fakeAuth";
-import { getMessages, replyToMessage } from "../../lib/fakeCommunity";
+import {
+  getMessagesForUser,
+  replyToMessage,
+} from "../../lib/fakeCommunity";
+import { getRegistrations } from "../../lib/fakeCurriculum";
 
 export default function ViewMessagesPage() {
   const router = useRouter();
@@ -17,14 +21,19 @@ export default function ViewMessagesPage() {
   useEffect(() => {
     const currentUser = getCurrentUser();
 
-    if (!currentUser) {
+    if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
       router.push("/signin");
       return;
     }
 
     setUser(currentUser);
-    setMessages(getMessages());
+    setMessages(getMessagesForUser(currentUser));
   }, [router]);
+
+  function refreshMessages(currentUser = user) {
+    if (!currentUser) return;
+    setMessages(getMessagesForUser(currentUser));
+  }
 
   function handleReply(message) {
     const content = replyText[message.id];
@@ -39,23 +48,24 @@ export default function ViewMessagesPage() {
       studentEmail: message.senderEmail,
       content: content.trim(),
       originalMessage: message.content,
+      originalMessageId: message.id,
     });
 
     setFeedback(result.message);
-
     setReplyText({
       ...replyText,
       [message.id]: "",
     });
+    refreshMessages();
   }
 
   return (
     <PortalShell>
       <div className="content-box">
-        <h2>View Student Messages</h2>
+        <h2>Student Messages</h2>
         <p>
-          Professor can view student messages and send replies. Students will
-          see replies in their inbox.
+          Doctors can view messages sent by students and send replies. Students
+          receive replies in their inbox.
         </p>
 
         <hr />
@@ -63,9 +73,7 @@ export default function ViewMessagesPage() {
         {feedback && (
           <div
             className={
-              feedback.includes("successfully")
-                ? "message success"
-                : "message"
+              feedback.includes("successfully") ? "message success" : "message"
             }
           >
             {feedback}
@@ -77,44 +85,67 @@ export default function ViewMessagesPage() {
         {messages
           .slice()
           .reverse()
-          .map((message) => (
-            <div className="info-card" key={message.id}>
-              <h3>From: {message.sender}</h3>
+          .map((message) => {
+            const studentCourses = getRegistrations(message.senderEmail);
 
-              <p>
-                <strong>Student Email:</strong> {message.senderEmail}
-              </p>
+            return (
+              <div className="info-card" key={message.id}>
+                <div className="card-title-row">
+                  <h3>From: {message.sender}</h3>
+                  <span className={`status-pill ${message.status === "replied" ? "done" : "open"}`}>
+                    {message.status === "replied" ? "Replied" : "Open"}
+                  </span>
+                </div>
 
-              <p>
-                <strong>To:</strong> {message.receiver}
-              </p>
+                <p>
+                  <strong>Student Email:</strong> {message.senderEmail}
+                </p>
 
-              <p>
-                <strong>Message:</strong> {message.content}
-              </p>
+                <p>
+                  <strong>To:</strong> {message.receiver}
+                </p>
 
-              <p className="meta">Sent: {message.date}</p>
+                <p>
+                  <strong>Message:</strong> {message.content}
+                </p>
 
-              <textarea
-                className="form-textarea"
-                placeholder="Write reply..."
-                value={replyText[message.id] || ""}
-                onChange={(e) =>
-                  setReplyText({
-                    ...replyText,
-                    [message.id]: e.target.value,
-                  })
-                }
-              />
+                {studentCourses.length > 0 && (
+                  <div className="mini-list">
+                    <strong>Student registered courses:</strong>
+                    {studentCourses.map((course) => (
+                      <span key={course.id}>
+                        {course.courseName} ({course.courseCode})
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-              <button
-                className="small-action-btn"
-                onClick={() => handleReply(message)}
-              >
-                Send Reply
-              </button>
-            </div>
-          ))}
+                <p className="meta">Sent: {message.date}</p>
+                {message.lastReplyDate && (
+                  <p className="meta">Last reply: {message.lastReplyDate}</p>
+                )}
+
+                <textarea
+                  className="form-textarea"
+                  placeholder="Write reply..."
+                  value={replyText[message.id] || ""}
+                  onChange={(e) =>
+                    setReplyText({
+                      ...replyText,
+                      [message.id]: e.target.value,
+                    })
+                  }
+                />
+
+                <button
+                  className="small-action-btn"
+                  onClick={() => handleReply(message)}
+                >
+                  Send Reply
+                </button>
+              </div>
+            );
+          })}
       </div>
     </PortalShell>
   );

@@ -44,6 +44,7 @@ export default function DashboardPage() {
             <div className="info-card" key={item.id}>
               <h3>{item.courseName} ({item.courseCode})</h3>
               <p><strong>Department:</strong> {item.department}</p>
+              <p><strong>Doctor:</strong> {item.professor || "Not assigned"}</p>
               <p><strong>Level:</strong> {item.level} | <strong>Credits:</strong> {item.credits}</p>
               <p className="meta">Registered on: {item.date}</p>
             </div>

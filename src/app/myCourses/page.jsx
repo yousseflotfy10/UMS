@@ -1,51 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import PortalShell from "../../components/PortalShell";
+import { getCurrentUser } from "../../lib/fakeAuth";
+import { getRegistrations } from "../../lib/fakeCurriculum";
 
 export default function MyCoursesPage() {
+  const router = useRouter();
   const [registeredCourses, setRegisteredCourses] = useState([]);
 
   useEffect(() => {
-    const savedCourses = localStorage.getItem("registeredCourses");
-    setRegisteredCourses(savedCourses ? JSON.parse(savedCourses) : []);
-  }, []);
+    const currentUser = getCurrentUser();
+
+    if (!currentUser || currentUser.role !== "student") {
+      router.push("/signin");
+      return;
+    }
+
+    setRegisteredCourses(getRegistrations(currentUser.email));
+  }, [router]);
 
   return (
-    <main className="portal-page">
-      <div className="portal-wrapper">
-        <header className="portal-header">
-          <h1>UMS</h1>
-        </header>
+    <PortalShell>
+      <div className="content-box">
+        <h2>My Courses</h2>
+        <p>These are the courses you registered for.</p>
 
-        <nav className="portal-tabs">
-          <a href="/">Courses</a>
-          <a href="/registration">Course Registration</a>
-          <a href="/my-courses">My Courses</a>
-          <a href="/signin">Sign in</a>
-        </nav>
-
-        <div className="portal-content">
-          <div className="dashboard-box">
-            <h2>My Courses</h2>
-            <p>These are the courses you registered for.</p>
-
-            {registeredCourses.length === 0 ? (
-              <p>You have not registered for any courses yet.</p>
-            ) : (
-              <div className="course-card-grid">
-                {registeredCourses.map((course) => (
-                  <div className="course-card" key={course.id}>
-                    <h3>{course.name}</h3>
-                    <p>
-                      <strong>Code:</strong> {course.code}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        {registeredCourses.length === 0 ? (
+          <p>You have not registered for any courses yet.</p>
+        ) : (
+          registeredCourses.map((course) => (
+            <div className="info-card" key={course.id}>
+              <h3>
+                {course.courseName} ({course.courseCode})
+              </h3>
+              <p>
+                <strong>Doctor:</strong> {course.professor || "Not assigned"}
+              </p>
+              <p className="meta">Registered on: {course.date}</p>
+            </div>
+          ))
+        )}
       </div>
-    </main>
+    </PortalShell>
   );
 }

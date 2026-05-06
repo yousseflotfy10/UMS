@@ -29,13 +29,13 @@ export default function CoursesPage() {
   }
 
   function handleRegister(courseId) {
-    const result = registerCourse(user.email, courseId);
+    const result = registerCourse(user, courseId);
     setFeedback(result.message);
     setRegistrations(getRegistrations(user.email));
   }
 
   function handleDrop(courseId) {
-    const result = dropCourse(user.email, courseId);
+    const result = dropCourse(user, courseId);
     setFeedback(result.message);
     setRegistrations(getRegistrations(user.email));
   }
@@ -55,6 +55,7 @@ export default function CoursesPage() {
                 <h3>{course.name}</h3>
                 <p><strong>Code:</strong> {course.code}</p>
                 <p><strong>Department:</strong> {course.department}</p>
+                <p><strong>Doctor:</strong> {course.professor || "Not assigned"}</p>
                 <p><strong>Level:</strong> {course.level} | <strong>Credits:</strong> {course.credits}</p>
 
                 {isRegistered(course.id) ? (
@@ -73,6 +74,7 @@ export default function CoursesPage() {
               <div className="info-card" key={item.id}>
                 <h3>{item.courseName} ({item.courseCode})</h3>
                 <p><strong>Department:</strong> {item.department}</p>
+                <p><strong>Doctor:</strong> {item.professor || "Not assigned"}</p>
                 <p className="meta">Registered on: {item.date}</p>
                 <button className="danger-action-btn" onClick={() => handleDrop(item.courseId)}>Drop Course</button>
               </div>

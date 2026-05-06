@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
-import { getUsers } from "../../lib/fakeAuth";
+import { getCurrentUser } from "../../lib/fakeAuth";
 import {
-  getCourses,
-  getGrades,
-  uploadGrade,
-} from "../../lib/fakeGrades";
+  getAllRegistrations,
+  getProfessorRegistrations,
+  getRegistrationStats,
+} from "../../lib/fakeCurriculum";
+import { getGrades, uploadGrade } from "../../lib/fakeGrades";
 
 export default function UploadGradesPage() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
   const [courses, setCourses] = useState([]);
-  const [students, setStudents] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [grades, setGrades] = useState([]);
 
   const [studentEmail, setStudentEmail] = useState("");
@@ -21,38 +25,64 @@ export default function UploadGradesPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setCourses(getCourses());
+    const currentUser = getCurrentUser();
 
-    const users = getUsers();
-    const studentUsers = users.filter((user) => user.role === "student");
-    setStudents(studentUsers);
+    if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+      router.push("/signin");
+      return;
+    }
 
+    const visibleCourses = getRegistrationStats(
+      currentUser.role === "professor" ? currentUser.name : ""
+    );
+    const visibleRegistrations =
+      currentUser.role === "professor"
+        ? getProfessorRegistrations(currentUser.name)
+        : getAllRegistrations();
+
+    setUser(currentUser);
+    setCourses(visibleCourses);
+    setRegistrations(visibleRegistrations);
     setGrades(getGrades());
-}, []);
+    setCourseCode(visibleCourses[0]?.code || "");
+  }, [router]);
+
+  const studentsForSelectedCourse = useMemo(() => {
+    if (!courseCode) return [];
+
+    return registrations.filter(
+      (registration) => registration.courseCode === courseCode
+    );
+  }, [registrations, courseCode]);
 
   function handleSubmit(e) {
     e.preventDefault();
+    setMessage("");
 
-    if (!studentEmail || !courseCode || !grade) {
+    if (!studentEmail || !courseCode || !grade.trim()) {
       setMessage("Please fill all required fields.");
       return;
     }
 
-    const selectedStudent = students.find(
-      (student) => student.email === studentEmail
+    const selectedStudent = registrations.find(
+      (registration) =>
+        registration.studentEmail === studentEmail &&
+        registration.courseCode === courseCode
     );
 
-    const selectedCourse = courses.find(
-      (course) => course.code === courseCode
-    );
+    if (!selectedStudent) {
+      setMessage("This student is not registered in the selected course.");
+      return;
+    }
 
     const result = uploadGrade({
-      studentName: selectedStudent.name,
-      studentEmail: selectedStudent.email,
-      courseCode: selectedCourse.code,
-      courseName: selectedCourse.name,
-      grade,
-      feedback,
+      studentName: selectedStudent.studentName || "Student",
+      studentEmail: selectedStudent.studentEmail,
+      courseCode: selectedStudent.courseCode,
+      courseName: selectedStudent.courseName,
+      grade: grade.trim(),
+      feedback: feedback.trim(),
+      uploadedBy: user?.name,
     });
 
     setMessage(result.message);
@@ -60,7 +90,6 @@ export default function UploadGradesPage() {
     if (result.success) {
       setGrades(getGrades());
       setStudentEmail("");
-      setCourseCode("");
       setGrade("");
       setFeedback("");
     }
@@ -71,32 +100,27 @@ export default function UploadGradesPage() {
       <div className="content-box">
         <h2>Upload Grades</h2>
         <p>
-          Professor can upload student grades so students can access their
-          results.
+          Doctor can upload grades only for students registered in the selected
+          course.
         </p>
 
         <hr />
 
+        {registrations.length === 0 && (
+          <div className="message">
+            No registered students yet. Students must register in courses first.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <select
             className="form-select"
-            value={studentEmail}
-            onChange={(e) => setStudentEmail(e.target.value)}
-          >
-            <option value="">Select student</option>
-            {students.map((student) => (
-            <option key={student.email} value={student.email}>
-             {student.name} - {student.email}
-            </option>
-            ))}
-          </select>
-
-          <select
-            className="form-select"
             value={courseCode}
-            onChange={(e) => setCourseCode(e.target.value)}
+            onChange={(e) => {
+              setCourseCode(e.target.value);
+              setStudentEmail("");
+            }}
           >
-            <option value="">Select course</option>
             {courses.map((course) => (
               <option key={course.id} value={course.code}>
                 {course.code} - {course.name}
@@ -106,30 +130,32 @@ export default function UploadGradesPage() {
 
           <select
             className="form-select"
+            value={studentEmail}
+            onChange={(e) => setStudentEmail(e.target.value)}
+          >
+            <option value="">Select registered student</option>
+            {studentsForSelectedCourse.map((student) => (
+              <option key={student.id} value={student.studentEmail}>
+                {student.studentName || "Student"} - {student.studentEmail}
+              </option>
+            ))}
+          </select>
+
+          <input
+            className="form-input"
+            placeholder="Grade, example: A, B+, 95"
             value={grade}
             onChange={(e) => setGrade(e.target.value)}
-          >
-            <option value="">Select grade</option>
-            <option value="A+">A+</option>
-            <option value="A">A</option>
-            <option value="B+">B+</option>
-            <option value="B">B</option>
-            <option value="C+">C+</option>
-            <option value="C">C</option>
-            <option value="D">D</option>
-            <option value="F">F</option>
-          </select>
+          />
 
           <textarea
             className="form-textarea"
-            placeholder="Feedback (optional)"
+            placeholder="Feedback optional"
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
           />
 
-          <button className="primary-btn" type="submit">
-            Upload Grade
-          </button>
+          <button className="primary-btn">Upload Grade</button>
         </form>
 
         {message && (
@@ -146,11 +172,15 @@ export default function UploadGradesPage() {
 
         <h3>Uploaded Grades</h3>
 
+        {grades.length === 0 && <p>No grades uploaded yet.</p>}
+
         {grades.map((item) => (
           <div className="info-card" key={item.id}>
-            <h3>{item.studentName}</h3>
+            <h3>
+              {item.studentName} - {item.courseCode}
+            </h3>
             <p>
-              <strong>Course:</strong> {item.courseCode} - {item.courseName}
+              <strong>Course:</strong> {item.courseName}
             </p>
             <p>
               <strong>Grade:</strong> {item.grade}
@@ -158,6 +188,11 @@ export default function UploadGradesPage() {
             <p>
               <strong>Feedback:</strong> {item.feedback || "No feedback"}
             </p>
+            {item.uploadedBy && (
+              <p>
+                <strong>Uploaded by:</strong> {item.uploadedBy}
+              </p>
+            )}
             <p className="meta">Date: {item.date}</p>
           </div>
         ))}

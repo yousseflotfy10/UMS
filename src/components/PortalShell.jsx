@@ -47,6 +47,8 @@ export default function PortalShell({ children, showLogout = true }) {
 
     if (role === "admin") {
       router.push("/addCourses");
+    } else if (role === "professor") {
+      router.push("/studentRegistrations");
     } else {
       router.push("/courses");
     }
@@ -66,7 +68,7 @@ export default function PortalShell({ children, showLogout = true }) {
     e.preventDefault();
 
     if (role === "admin") {
-      router.push("/BookingPage"); // change if lowercase
+      router.push("/BookingPage");
     } else {
       router.push("/viewBooking");
     }
@@ -77,6 +79,11 @@ export default function PortalShell({ children, showLogout = true }) {
       <div className="portal-wrapper">
         <header className="portal-header">
           <h1>UMS</h1>
+          {user && (
+            <p className="portal-user-line">
+              {user.name} · {role === "professor" ? "Doctor" : role}
+            </p>
+          )}
         </header>
 
         <nav className="portal-tabs">
@@ -84,7 +91,9 @@ export default function PortalShell({ children, showLogout = true }) {
 
           <a href="#" onClick={goMessages}>Messages</a>
 
-          <a href="#" onClick={goCourses}>Courses</a>
+          <a href="#" onClick={goCourses}>
+            {role === "professor" || role === "admin" ? "Registrations" : "Courses"}
+          </a>
 
           {(role === "professor" || role === "student") && (
             <a href="#" onClick={goGrades}>Grades</a>
