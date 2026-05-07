@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
 import { getCurrentAppUser } from "../../lib/auth";
-import { getCourses, getRegistrations, registerCourse } from "../../lib/community";
+import {
+  getCourses,
+  getRegistrations,
+  registerCourse,
+  getPrerequisiteSummary,
+} from "../../lib/community";
 
 export default function CourseRegistrationPage() {
   const router = useRouter();
@@ -67,6 +72,9 @@ export default function CourseRegistrationPage() {
             </p>
             <p>
               <strong>Doctor:</strong> {course.professor || "Not assigned"}
+            </p>
+            <p>
+              <strong>Prerequisites:</strong> {getPrerequisiteSummary(course, courses)}
             </p>
             <button
               className={isRegistered(course.id) ? "danger-action-btn" : "small-action-btn"}

@@ -379,3 +379,57 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.field-label .form-input,
+.field-label .form-select {
+  margin-top: 8px;
+}
+
+.availability-panel {
+  border: 1px solid #bfdbfe;
+  background: #eef6ff;
+  padding: 16px;
+  margin: 0 0 20px;
+}
+
+.availability-panel h3 {
+  margin: 0;
+}
+
+.room-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.room-chip {
+  border: 1px solid #93c5fd;
+  background: #ffffff;
+  color: #1e40af;
+  padding: 9px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.room-chip:hover,
+.room-chip.selected,
+.room-chip[aria-pressed="true"] {
+  background: #1976d2;
+  color: #ffffff;
+  border-color: #1976d2;
+}
+
+.clear-filter-btn {
+  width: auto;
+  margin: -6px 0 16px;
+}

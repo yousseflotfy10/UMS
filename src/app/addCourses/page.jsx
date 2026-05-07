@@ -17,6 +17,7 @@ export default function AddCoursesPage() {
   const [level, setLevel] = useState("");
   const [credits, setCredits] = useState("");
   const [professor, setProfessor] = useState("");
+  const [prerequisiteCodes, setPrerequisiteCodes] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function AddCoursesPage() {
       level,
       credits,
       professor,
+      prerequisiteCodes,
     });
 
     setMessage(result.message);
@@ -71,6 +73,7 @@ export default function AddCoursesPage() {
       setDepartment("");
       setLevel("");
       setCredits("");
+      setPrerequisiteCodes("");
       setProfessor(professors[0]?.name || "");
     }
   }
@@ -132,6 +135,13 @@ export default function AddCoursesPage() {
             ))}
           </select>
 
+          <input
+            className="form-input"
+            placeholder="Prerequisite course codes, optional: CS101, MATH101"
+            value={prerequisiteCodes}
+            onChange={(event) => setPrerequisiteCodes(event.target.value)}
+          />
+
           <button className="primary-btn">Add Course</button>
         </form>
 
@@ -165,6 +175,9 @@ export default function AddCoursesPage() {
             </p>
             <p>
               <strong>Doctor:</strong> {course.professor || "Not assigned"}
+            </p>
+            <p>
+              <strong>Prerequisites:</strong> {course.prerequisiteCodes?.length ? course.prerequisiteCodes.join(", ") : "No prerequisites"}
             </p>
           </div>
         ))}

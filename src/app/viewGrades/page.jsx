@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import PortalShell from "../../components/PortalShell";
 import { getCurrentAppUser } from "../../lib/auth";
-import { getGrades } from "../../lib/grades";
+import { getGradesForStudent } from "../../lib/grades";
 
 export default function ViewGradesPage() {
   const [user, setUser] = useState(null);
@@ -15,14 +15,7 @@ export default function ViewGradesPage() {
       setUser(currentUser);
 
       if (currentUser) {
-        const allGrades = await getGrades();
-        const myGrades = allGrades.filter(
-          (grade) =>
-            (grade.studentEmail || "").toLowerCase() ===
-            (currentUser.email || "").toLowerCase()
-        );
-
-        setGrades(myGrades);
+        setGrades(await getGradesForStudent(currentUser));
       }
     }
     init();

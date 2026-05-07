@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
 import { getCurrentAppUser } from "../../lib/auth";
-import { getCourses, getRegistrations, registerCourse, dropCourse } from "../../lib/community";
+import {
+  getCourses,
+  getRegistrations,
+  registerCourse,
+  dropCourse,
+  getPrerequisiteSummary,
+} from "../../lib/community";
 
 export default function CoursesPage() {
   const router = useRouter();
@@ -65,6 +71,7 @@ export default function CoursesPage() {
                 <p><strong>Department:</strong> {course.department}</p>
                 <p><strong>Doctor:</strong> {course.professor || "Not assigned"}</p>
                 <p><strong>Level:</strong> {course.level} | <strong>Credits:</strong> {course.credits}</p>
+                <p><strong>Prerequisites:</strong> {getPrerequisiteSummary(course, courses)}</p>
 
                 {isRegistered(course.id) ? (
                   <button className="danger-action-btn" onClick={() => handleDrop(course.id)}>Drop Course</button>

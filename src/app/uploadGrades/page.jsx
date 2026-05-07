@@ -9,7 +9,7 @@ import {
   getProfessorRegistrations,
   getRegistrationStats,
 } from "../../lib/community";
-import { getGrades, uploadGrade } from "../../lib/grades";
+import { getGrades, getGradesForCourses, uploadGrade } from "../../lib/grades";
 
 export default function UploadGradesPage() {
   const router = useRouter();
@@ -44,7 +44,11 @@ export default function UploadGradesPage() {
       setUser(currentUser);
       setCourses(visibleCourses);
       setRegistrations(visibleRegistrations);
-      setGrades(await getGrades());
+      setGrades(
+        currentUser.role === "professor"
+          ? await getGradesForCourses(visibleCourses.map((course) => course.code))
+          : await getGrades()
+      );
       setCourseCode(visibleCourses[0]?.code || "");
     }
     init();
@@ -91,7 +95,11 @@ export default function UploadGradesPage() {
     setMessage(result.message);
 
     if (result.success) {
-      setGrades(await getGrades());
+      setGrades(
+        user?.role === "professor"
+          ? await getGradesForCourses(courses.map((course) => course.code))
+          : await getGrades()
+      );
       setStudentEmail("");
       setGrade("");
       setFeedback("");

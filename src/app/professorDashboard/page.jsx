@@ -21,7 +21,7 @@ export default function ProfessorDashboard() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || currentUser.role !== "professor") {
+      if (!currentUser || !["professor", "doctor"].includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
@@ -78,6 +78,17 @@ export default function ProfessorDashboard() {
 
         <div className="two-column-section">
           <div className="info-card">
+            <h3>Staff Profile</h3>
+            <p>View your role information and assigned courses.</p>
+            <button
+              className="small-action-btn"
+              onClick={() => router.push("/staffProfile")}
+            >
+              View Profile
+            </button>
+          </div>
+
+          <div className="info-card">
             <h3>Push Announcement</h3>
             <p>Create an announcement for all students or one specific course.</p>
             <button
@@ -118,6 +129,17 @@ export default function ProfessorDashboard() {
               onClick={() => router.push("/uploadGrades")}
             >
               Upload Grades
+            </button>
+          </div>
+
+          <div className="info-card">
+            <h3>Register Classroom</h3>
+            <p>Choose a course, date, time slot, and available room.</p>
+            <button
+              className="small-action-btn"
+              onClick={() => router.push("/BookingPage")}
+            >
+              Register Classroom
             </button>
           </div>
         </div>

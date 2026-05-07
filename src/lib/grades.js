@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { supabase } from "./supabase";
 
 function mapGrade(item) {
   return {
@@ -20,6 +20,45 @@ export async function getGrades() {
   const { data, error } = await supabase
     .from("grades")
     .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+  return (data ?? []).map(mapGrade);
+}
+
+export async function getGradesForStudent(user) {
+  if (!user?.id) return [];
+
+  const { data, error } = await supabase
+    .from("grades")
+    .select("*")
+    .eq("student_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (!error && data) {
+    return data.map(mapGrade);
+  }
+
+  if (!user.email) return [];
+
+  const { data: byEmail, error: byEmailError } = await supabase
+    .from("grades")
+    .select("*")
+    .ilike("student_email", user.email)
+    .order("created_at", { ascending: false });
+
+  if (byEmailError) return [];
+  return (byEmail ?? []).map(mapGrade);
+}
+
+export async function getGradesForCourses(courseCodes = []) {
+  const codes = courseCodes.filter(Boolean);
+  if (codes.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("grades")
+    .select("*")
+    .in("course_code", codes)
     .order("created_at", { ascending: false });
 
   if (error) return [];

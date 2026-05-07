@@ -32,7 +32,7 @@ const role = user.role || "student";
 
 if (role === "admin") {
   router.push("/adminDashboard");
-} else if (role === "professor") {
+} else if (role === "professor" || role === "doctor") {
   router.push("/professorDashboard");
 } else {
   router.push("/dashboard");

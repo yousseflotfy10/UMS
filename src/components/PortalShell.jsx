@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logoutUser, getCurrentAppUser } from "../lib/auth";
 
+function isDoctor(role) {
+  return role === "professor" || role === "doctor";
+}
+
 export default function PortalShell({ children, showLogout = true }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -27,24 +31,29 @@ export default function PortalShell({ children, showLogout = true }) {
     e.preventDefault();
 
     if (role === "admin") router.push("/adminDashboard");
-    else if (role === "professor") router.push("/professorDashboard");
+    else if (isDoctor(role)) router.push("/professorDashboard");
     else router.push("/dashboard");
   }
 
   function goMessages(e) {
     e.preventDefault();
 
-    if (role === "admin" || role === "professor") {
+    if (role === "admin" || isDoctor(role)) {
       router.push("/viewMessages");
     } else {
       router.push("/messages");
     }
   }
 
+  function goProfile(e) {
+    e.preventDefault();
+    router.push("/staffProfile");
+  }
+
   function goAnnouncements(e) {
     e.preventDefault();
 
-    if (role === "admin" || role === "professor") {
+    if (role === "admin" || isDoctor(role)) {
       router.push("/addAnnouncements");
     } else {
       router.push("/announcements");
@@ -56,7 +65,7 @@ export default function PortalShell({ children, showLogout = true }) {
 
     if (role === "admin") {
       router.push("/addCourses");
-    } else if (role === "professor") {
+    } else if (isDoctor(role)) {
       router.push("/studentRegistrations");
     } else {
       router.push("/courses");
@@ -66,7 +75,7 @@ export default function PortalShell({ children, showLogout = true }) {
   function goGrades(e) {
     e.preventDefault();
 
-    if (role === "professor") {
+    if (isDoctor(role)) {
       router.push("/uploadGrades");
     } else {
       router.push("/viewGrades");
@@ -76,7 +85,7 @@ export default function PortalShell({ children, showLogout = true }) {
   function goRooms(e) {
     e.preventDefault();
 
-    if (role === "admin") {
+    if (role === "admin" || isDoctor(role)) {
       router.push("/BookingPage");
     } else {
       router.push("/viewBooking");
@@ -90,7 +99,7 @@ export default function PortalShell({ children, showLogout = true }) {
           <h1>UMS</h1>
           {user && (
             <p className="portal-user-line">
-              {user.name} · {role === "professor" ? "Doctor" : role}
+              {user.name} · {isDoctor(role) ? "Doctor" : role}
             </p>
           )}
         </header>
@@ -98,13 +107,17 @@ export default function PortalShell({ children, showLogout = true }) {
         <nav className="portal-tabs">
           <a href="#" onClick={goDashboard}>Dashboard</a>
 
+          {(role === "admin" || isDoctor(role)) && (
+            <a href="#" onClick={goProfile}>Profile</a>
+          )}
+
           <a href="#" onClick={goMessages}>Messages</a>
 
           <a href="#" onClick={goCourses}>
-            {role === "professor" || role === "admin" ? "Registrations" : "Courses"}
+            {role === "admin" || isDoctor(role) ? "Registrations" : "Courses"}
           </a>
 
-          {(role === "professor" || role === "student") && (
+          {(isDoctor(role) || role === "student") && (
             <a href="#" onClick={goGrades}>Grades</a>
           )}
 
