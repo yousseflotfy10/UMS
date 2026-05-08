@@ -18,6 +18,8 @@ export default function AddCoursesPage() {
   const [credits, setCredits] = useState("");
   const [professor, setProfessor] = useState("");
   const [prerequisiteCodes, setPrerequisiteCodes] = useState("");
+  const [scheduleDay, setScheduleDay] = useState("");
+  const [scheduleTimeSlot, setScheduleTimeSlot] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -62,6 +64,8 @@ export default function AddCoursesPage() {
       credits,
       professor,
       prerequisiteCodes,
+      scheduleDay,
+      scheduleTimeSlot,
     });
 
     setMessage(result.message);
@@ -74,6 +78,8 @@ export default function AddCoursesPage() {
       setLevel("");
       setCredits("");
       setPrerequisiteCodes("");
+      setScheduleDay("");
+      setScheduleTimeSlot("");
       setProfessor(professors[0]?.name || "");
     }
   }
@@ -142,6 +148,36 @@ export default function AddCoursesPage() {
             onChange={(event) => setPrerequisiteCodes(event.target.value)}
           />
 
+          <div className="inline-grid">
+            <label className="field-label">
+              Schedule Day Optional
+              <select
+                className="form-select"
+                value={scheduleDay}
+                onChange={(event) => setScheduleDay(event.target.value)}
+              >
+                <option value="">No fixed day</option>
+                <option value="Sunday">Sunday</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+              </select>
+            </label>
+
+            <label className="field-label">
+              Schedule Time Slot Optional
+              <input
+                className="form-input"
+                placeholder="Example: 10:00 AM - 12:00 PM"
+                value={scheduleTimeSlot}
+                onChange={(event) => setScheduleTimeSlot(event.target.value)}
+              />
+            </label>
+          </div>
+
           <button className="primary-btn">Add Course</button>
         </form>
 
@@ -178,6 +214,9 @@ export default function AddCoursesPage() {
             </p>
             <p>
               <strong>Prerequisites:</strong> {course.prerequisiteCodes?.length ? course.prerequisiteCodes.join(", ") : "No prerequisites"}
+            </p>
+            <p>
+              <strong>Schedule:</strong> {course.scheduleDay && course.scheduleTimeSlot ? `${course.scheduleDay} · ${course.scheduleTimeSlot}` : "Schedule not set"}
             </p>
           </div>
         ))}

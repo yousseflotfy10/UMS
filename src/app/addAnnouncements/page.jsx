@@ -29,20 +29,20 @@ export default function AddAnnouncementsPage() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+      if (!currentUser || !["admin", "professor", "doctor"].includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
 
       const visibleCourses =
-        currentUser.role === "professor"
+        ["professor", "doctor"].includes(currentUser.role)
           ? await getRegistrationStats(currentUser.name)
           : await getCourses();
 
       setUser(currentUser);
       const profs = await getProfessors();
       setProfessors(profs.map((item) => item.name));
-      setProfessor(currentUser.role === "professor" ? currentUser.name : "");
+      setProfessor(["professor", "doctor"].includes(currentUser.role) ? currentUser.name : "");
       setCourses(visibleCourses);
       setAnnouncements(
         (await getAnnouncements()).sort((a, b) => new Date(b.date) - new Date(a.date))

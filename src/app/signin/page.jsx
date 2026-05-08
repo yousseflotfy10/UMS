@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { isValidEmail, normalizeEmail } from "../../lib/validation";
 import { useRouter } from "next/navigation";
 import { loginUser } from "../../lib/auth";
 
@@ -15,12 +17,19 @@ async function handleLogin(event) {
   event.preventDefault();
   setMessage("");
 
-  if (!email.trim() || !password.trim()) {
+  const cleanEmail = normalizeEmail(email);
+
+  if (!cleanEmail || !password.trim()) {
     setMessage("Please enter email and password.");
     return;
   }
 
-  const result = await loginUser(email.trim(), password);
+  if (!isValidEmail(cleanEmail)) {
+    setMessage("Please enter a valid email address.");
+    return;
+  }
+
+  const result = await loginUser(cleanEmail, password);
 
   // ✅ STOP if login failed
   if (!result.success || !result.user) {
@@ -32,7 +41,7 @@ const role = user.role || "student";
 
 if (role === "admin") {
   router.push("/adminDashboard");
-} else if (role === "professor" || role === "doctor") {
+} else if ((role === "professor" || role === "doctor")) {
   router.push("/professorDashboard");
 } else {
   router.push("/dashboard");
@@ -47,8 +56,8 @@ if (role === "admin") {
         </header>
 
         <nav className="portal-tabs">
-          <a href="/signin">Sign in</a>
-          <a href="/signup">Create account</a>
+          <Link href="/signin">Sign in</Link>
+          <Link href="/signup">Create account</Link>
         </nav>
 
         <div className="portal-content">
@@ -56,6 +65,7 @@ if (role === "admin") {
             <form onSubmit={handleLogin}>
               <input
                 className="form-input"
+                type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -75,8 +85,8 @@ if (role === "admin") {
             </form>
 
             <div className="side-info">
-              <a href="/signup">Create a new account</a>
-              <a href="#">Forgotten your username or password?</a>
+              <Link href="/signup">Create a new account</Link>
+              <Link href="/forgot-password">Forgot password?</Link>
               <p>
                 Cookies must be enabled in your browser{" "}
                 <span className="help-icon">?</span>

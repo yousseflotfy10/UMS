@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { isValidEmail, normalizeEmail } from "../../lib/validation";
 import { registerUser } from "../../lib/auth";
 
 export default function SignUpPage() {
@@ -21,13 +22,20 @@ export default function SignUpPage() {
     setMessage("");
     setIsSuccess(false);
 
-    if (!name.trim() || !email.trim() || !password.trim() || !studentId.trim()) {
+    const cleanEmail = normalizeEmail(email);
+
+    if (!name.trim() || !cleanEmail || !password.trim() || !studentId.trim()) {
       setMessage("Please fill all required fields.");
       return;
     }
 
-    if (!email.includes("@")) {
+    if (!isValidEmail(cleanEmail)) {
       setMessage("Please enter a valid email address.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setMessage("Password must be at least 6 characters.");
       return;
     }
 
@@ -38,7 +46,7 @@ export default function SignUpPage() {
 
     const result = await registerUser({
       name: name.trim(),
-      email: email.trim(),
+      email: cleanEmail,
       password,
       studentId: studentId.trim().toUpperCase(),
       role: "student", 
@@ -81,6 +89,7 @@ export default function SignUpPage() {
 
               <input
                 className="form-input"
+                type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}

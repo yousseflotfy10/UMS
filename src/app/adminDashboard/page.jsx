@@ -133,23 +133,23 @@ export default function AdminDashboardPage() {
 
           <div className="info-card">
             <h3>Classroom Booking</h3>
-            <p>Book classrooms for lectures, labs, or university events.</p>
+            <p>Book, edit, or delete classroom bookings for lectures, labs, or university events.</p>
             <button
               className="small-action-btn"
               onClick={() => router.push("/BookingPage")}
             >
-              Book Classroom
+              Manage Bookings
             </button>
           </div>
 
           <div className="info-card">
             <h3>Room Availability</h3>
-            <p>View available classrooms and current booked time slots.</p>
+            <p>View booked rooms and manage the current schedule with optional filters.</p>
             <button
               className="small-action-btn"
               onClick={() => router.push("/viewBooking")}
             >
-              View Availability
+              View / Edit Bookings
             </button>
           </div>
         </div>

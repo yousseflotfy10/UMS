@@ -9,6 +9,7 @@ import {
   getProfessorRegistrations,
   getRegistrationStats,
 } from "../../lib/community";
+import { getClassrooms } from "../../lib/booking";
 
 export default function ProfessorDashboard() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function ProfessorDashboard() {
   const [messages, setMessages] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [courseStats, setCourseStats] = useState([]);
+  const [rooms, setRooms] = useState([]);
 
   useEffect(() => {
     async function init() {
@@ -30,6 +32,7 @@ export default function ProfessorDashboard() {
       setMessages(await getMessagesForUser(currentUser));
       setRegistrations(await getProfessorRegistrations(currentUser.name));
       setCourseStats(await getRegistrationStats(currentUser.name));
+      setRooms(await getClassrooms());
     }
     init();
   }, [router]);
@@ -71,6 +74,12 @@ export default function ProfessorDashboard() {
             <span>Your Courses</span>
             <strong>{courseStats.length}</strong>
             <p>Course registration overview</p>
+          </div>
+
+          <div className="stat-card">
+            <span>Bookable Rooms</span>
+            <strong>{rooms.length}</strong>
+            <p>Check availability and register a room</p>
           </div>
         </div>
 
@@ -134,12 +143,12 @@ export default function ProfessorDashboard() {
 
           <div className="info-card">
             <h3>Register Classroom</h3>
-            <p>Choose a course, date, time slot, and available room.</p>
+            <p>Choose a date and time slot, see available rooms, then book one.</p>
             <button
               className="small-action-btn"
               onClick={() => router.push("/BookingPage")}
             >
-              Register Classroom
+              View Available Rooms
             </button>
           </div>
         </div>

@@ -28,16 +28,16 @@ export default function UploadGradesPage() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+      if (!currentUser || !["admin", "professor", "doctor"].includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
 
       const visibleCourses = await getRegistrationStats(
-        currentUser.role === "professor" ? currentUser.name : ""
+        ["professor", "doctor"].includes(currentUser.role) ? currentUser.name : ""
       );
       const visibleRegistrations =
-        currentUser.role === "professor"
+        ["professor", "doctor"].includes(currentUser.role)
           ? await getProfessorRegistrations(currentUser.name)
           : await getAllRegistrations();
 
@@ -45,7 +45,7 @@ export default function UploadGradesPage() {
       setCourses(visibleCourses);
       setRegistrations(visibleRegistrations);
       setGrades(
-        currentUser.role === "professor"
+        ["professor", "doctor"].includes(currentUser.role)
           ? await getGradesForCourses(visibleCourses.map((course) => course.code))
           : await getGrades()
       );
@@ -96,7 +96,7 @@ export default function UploadGradesPage() {
 
     if (result.success) {
       setGrades(
-        user?.role === "professor"
+        ["professor", "doctor"].includes(user?.role)
           ? await getGradesForCourses(courses.map((course) => course.code))
           : await getGrades()
       );

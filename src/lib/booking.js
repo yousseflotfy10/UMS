@@ -50,9 +50,7 @@ function fallbackTimeSlots() {
 
 async function insertMissingClassrooms(existingRooms = []) {
   const existingNames = new Set((existingRooms || []).map((room) => room.name));
-  const missingRooms = DEFAULT_CLASSROOMS.filter(
-    (room) => !existingNames.has(room.name)
-  );
+  const missingRooms = DEFAULT_CLASSROOMS.filter((room) => !existingNames.has(room.name));
 
   if (missingRooms.length === 0) return;
 
@@ -61,9 +59,7 @@ async function insertMissingClassrooms(existingRooms = []) {
 
 async function insertMissingTimeSlots(existingSlots = []) {
   const existingLabels = new Set((existingSlots || []).map((slot) => slot.label));
-  const missingSlots = DEFAULT_TIME_SLOTS.filter(
-    (slot) => !existingLabels.has(slot.label)
-  );
+  const missingSlots = DEFAULT_TIME_SLOTS.filter((slot) => !existingLabels.has(slot.label));
 
   if (missingSlots.length === 0) return;
 
@@ -167,14 +163,13 @@ export async function getBookings() {
     const course = courseMap[Number(item.course_id)] || {};
     const courseName = course.name || item.course_name || "Course not specified";
     const courseCode = course.code || item.course_code || "";
-    const roomName = item.room || item.classroom || item.classroom_name || "Unknown room";
 
     return {
       id: item.id,
-      classroom: roomName,
+      classroom: item.room,
       classroomId: item.classroom_id,
       date: item.date,
-      timeSlot: item.time_slot || item.timeSlot || "",
+      timeSlot: item.time_slot,
       timeSlotId: item.time_slot_id,
       purpose: item.purpose,
       bookedBy: item.booked_by,
@@ -182,6 +177,7 @@ export async function getBookings() {
       courseCode,
       courseName,
       courseLabel: courseCode ? `${courseName} (${courseCode})` : courseName,
+      createdAt: item.created_at || "",
     };
   });
 }
@@ -202,7 +198,7 @@ export async function getBookingsForRegisteredCourses(userId) {
   return bookings.filter((booking) => courseIds.includes(Number(booking.courseId)));
 }
 
-export async function getAvailableClassrooms(date, timeSlot) {
+export async function getAvailableClassrooms(date, timeSlot, ignoredBookingId = null) {
   const rooms = await getClassrooms();
 
   if (!date || !timeSlot) {
@@ -217,6 +213,7 @@ export async function getAvailableClassrooms(date, timeSlot) {
     bookings
       .filter(
         (booking) =>
+          String(booking.id) !== String(ignoredBookingId || "") &&
           normalize(booking.date) === selectedDate &&
           normalize(booking.timeSlot) === selectedSlot
       )
@@ -226,9 +223,7 @@ export async function getAvailableClassrooms(date, timeSlot) {
   return rooms.filter((room) => !bookedRoomNames.has(normalize(room.name)));
 }
 
-export async function bookClassroom(booking, bookedBy) {
-  await ensureBookingSeedData();
-
+async function buildBookingPayload(booking, { requireCourse = true } = {}) {
   const classrooms = await getClassrooms();
   const slots = await getTimeSlots();
 
@@ -240,55 +235,143 @@ export async function bookClassroom(booking, bookedBy) {
   );
 
   if (!selectedRoom || !selectedSlot) {
-    return { success: false, message: "Invalid classroom or time slot." };
+    return { error: "Invalid classroom or time slot." };
   }
 
-  if (!booking.courseId) {
-    return { success: false, message: "Please select the course for this room booking." };
+  if (requireCourse && !booking.courseId) {
+    return { error: "Please select the course for this room booking." };
   }
 
   const selectedDate = normalize(booking.date);
   const selectedTimeSlot = normalize(booking.timeSlot);
   const selectedRoomName = normalize(booking.classroom);
+  const purpose = normalize(booking.purpose);
 
-  const bookings = await getBookings();
-  const conflict = bookings.some(
-    (item) =>
-      normalize(item.date) === selectedDate &&
-      normalize(item.timeSlot) === selectedTimeSlot &&
-      normalize(item.classroom) === selectedRoomName
-  );
-
-  if (conflict) {
-    return {
-      success: false,
-      message: "This classroom is already booked at this time.",
-    };
+  if (!selectedDate || !selectedTimeSlot || !selectedRoomName || !purpose) {
+    return { error: "Please complete classroom, date, time slot, and purpose." };
   }
 
   const payload = {
     room: selectedRoomName,
     date: selectedDate,
     time_slot: selectedTimeSlot,
-    booked_by: bookedBy || null,
-    purpose: normalize(booking.purpose),
-    course_id: Number(booking.courseId),
+    purpose,
   };
 
+  if (booking.courseId) payload.course_id = Number(booking.courseId);
   if (!selectedRoom.fallback) payload.classroom_id = selectedRoom.id;
   if (!selectedSlot.fallback) payload.time_slot_id = selectedSlot.id;
 
-  const { error } = await supabase.from("classroom_bookings").insert([payload]);
+  return { payload };
+}
+
+async function hasBookingConflict({ classroom, date, timeSlot, ignoredBookingId = null }) {
+  const selectedDate = normalize(date);
+  const selectedTimeSlot = normalize(timeSlot);
+  const selectedRoomName = normalize(classroom);
+  const bookings = await getBookings();
+
+  return bookings.some(
+    (item) =>
+      String(item.id) !== String(ignoredBookingId || "") &&
+      normalize(item.date) === selectedDate &&
+      normalize(item.timeSlot) === selectedTimeSlot &&
+      normalize(item.classroom) === selectedRoomName
+  );
+}
+
+export async function bookClassroom(booking, bookedBy) {
+  await ensureBookingSeedData();
+
+  const built = await buildBookingPayload(booking);
+  if (built.error) return { success: false, message: built.error };
+
+  const conflict = await hasBookingConflict({
+    classroom: booking.classroom,
+    date: booking.date,
+    timeSlot: booking.timeSlot,
+  });
+
+  if (conflict) {
+    return {
+      success: false,
+      message: "This classroom is already booked at this date and time slot.",
+    };
+  }
+
+  const payload = {
+    ...built.payload,
+    booked_by: bookedBy || null,
+  };
+
+  const { data, error } = await supabase
+    .from("classroom_bookings")
+    .insert([payload])
+    .select();
 
   if (error) {
+    console.error("CLASSROOM BOOKING ERROR:", error);
     return {
       success: false,
       message: `Could not book classroom: ${error.message}`,
     };
   }
 
+  console.log("CLASSROOM BOOKING SAVED:", data);
+
   return {
     success: true,
     message: "Classroom booked successfully.",
   };
+}
+
+export async function updateClassroomBooking(bookingId, booking) {
+  if (!bookingId) {
+    return { success: false, message: "Booking was not found." };
+  }
+
+  const built = await buildBookingPayload(booking);
+  if (built.error) return { success: false, message: built.error };
+
+  const conflict = await hasBookingConflict({
+    classroom: booking.classroom,
+    date: booking.date,
+    timeSlot: booking.timeSlot,
+    ignoredBookingId: bookingId,
+  });
+
+  if (conflict) {
+    return {
+      success: false,
+      message: "Cannot update booking because this room is already booked in the selected slot.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("classroom_bookings")
+    .update(built.payload)
+    .eq("id", bookingId);
+
+  if (error) {
+    return { success: false, message: `Could not update booking: ${error.message}` };
+  }
+
+  return { success: true, message: "Booking updated successfully." };
+}
+
+export async function cancelClassroomBooking(bookingId) {
+  if (!bookingId) {
+    return { success: false, message: "Booking was not found." };
+  }
+
+  const { error } = await supabase
+    .from("classroom_bookings")
+    .delete()
+    .eq("id", bookingId);
+
+  if (error) {
+    return { success: false, message: `Could not delete booking: ${error.message}` };
+  }
+
+  return { success: true, message: "Booking deleted successfully." };
 }

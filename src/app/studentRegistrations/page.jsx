@@ -11,52 +11,158 @@ import {
   getRegistrationStats,
 } from "../../lib/community";
 
+function normalizeValue(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function getCourseFilterValue(course) {
+  const id = String(course?.id ?? "").trim();
+  const code = String(course?.code ?? "").trim();
+  const name = String(course?.name ?? "").trim();
+  return JSON.stringify({ id, code, name });
+}
+
+function parseCourseFilterValue(value) {
+  if (!value || value === "all") return null;
+
+  try {
+    const parsed = JSON.parse(value);
+    return {
+      id: String(parsed.id ?? "").trim(),
+      code: String(parsed.code ?? "").trim(),
+      name: String(parsed.name ?? "").trim(),
+    };
+  } catch {
+    return {
+      id: String(value).trim(),
+      code: "",
+      name: "",
+    };
+  }
+}
+
+function courseMatchesFilter(course, selectedCourse) {
+  if (!selectedCourse) return true;
+
+  const selectedId = normalizeValue(selectedCourse.id);
+  const selectedCode = normalizeValue(selectedCourse.code);
+  const selectedName = normalizeValue(selectedCourse.name);
+
+  const courseId = normalizeValue(course?.id);
+  const courseCode = normalizeValue(course?.code);
+  const courseName = normalizeValue(course?.name);
+
+  return Boolean(
+    (selectedId && courseId && selectedId === courseId) ||
+      (selectedCode && courseCode && selectedCode === courseCode) ||
+      (selectedName && courseName && selectedName === courseName)
+  );
+}
+
+function registrationMatchesFilter(registration, selectedCourse) {
+  if (!selectedCourse) return true;
+
+  const selectedId = normalizeValue(selectedCourse.id);
+  const selectedCode = normalizeValue(selectedCourse.code);
+  const selectedName = normalizeValue(selectedCourse.name);
+
+  const registrationCourseId = normalizeValue(
+    registration?.courseId ?? registration?.course_id
+  );
+  const registrationCourseCode = normalizeValue(
+    registration?.courseCode ?? registration?.course_code
+  );
+  const registrationCourseName = normalizeValue(
+    registration?.courseName ?? registration?.course_name
+  );
+
+  return Boolean(
+    (selectedId && registrationCourseId && selectedId === registrationCourseId) ||
+      (selectedCode && registrationCourseCode && selectedCode === registrationCourseCode) ||
+      (selectedName && registrationCourseName && selectedName === registrationCourseName)
+  );
+}
+
 export default function StudentRegistrationsPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [courses, setCourses] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+      if (!currentUser || !["admin", "professor", "doctor"].includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
 
+      const isDoctor = ["professor", "doctor"].includes(currentUser.role);
+      const visibleRegistrations = isDoctor
+        ? await getProfessorRegistrations(currentUser.name)
+        : await getAllRegistrations();
+
       const visibleCourses = await getRegistrationStats(
-        currentUser.role === "professor" ? currentUser.name : ""
+        isDoctor ? currentUser.name : ""
       );
 
-      const visibleRegistrations =
-        currentUser.role === "professor"
-          ? await getProfessorRegistrations(currentUser.name)
-          : await getAllRegistrations();
+      const fallbackCourses = visibleCourses.length ? visibleCourses : await getCourses();
+      const coursesWithCounts = fallbackCourses.map((course) => ({
+        ...course,
+        registeredCount: visibleRegistrations.filter((registration) =>
+          registrationMatchesFilter(registration, {
+            id: String(course.id ?? ""),
+            code: String(course.code ?? ""),
+            name: String(course.name ?? ""),
+          })
+        ).length,
+      }));
 
       setUser(currentUser);
-      setCourses(visibleCourses.length ? visibleCourses : await getCourses());
-      setRegistrations(visibleRegistrations);
+      setCourses(coursesWithCounts);
+      setRegistrations(visibleRegistrations || []);
+      setLoading(false);
     }
     init();
   }, [router]);
 
-  const filteredRegistrations = useMemo(() => {
-    if (selectedCourse === "all") return registrations;
+  const selectedCourseObject = useMemo(
+    () => parseCourseFilterValue(selectedCourse),
+    [selectedCourse]
+  );
 
-    return registrations.filter(
-      (registration) => Number(registration.courseId) === Number(selectedCourse)
+  const filteredCourses = useMemo(() => {
+    if (!selectedCourseObject) return courses;
+    return courses.filter((course) => courseMatchesFilter(course, selectedCourseObject));
+  }, [courses, selectedCourseObject]);
+
+  const filteredRegistrations = useMemo(() => {
+    if (!selectedCourseObject) return registrations;
+    return registrations.filter((registration) =>
+      registrationMatchesFilter(registration, selectedCourseObject)
     );
-  }, [registrations, selectedCourse]);
+  }, [registrations, selectedCourseObject]);
+
+  if (loading) {
+    return (
+      <PortalShell>
+        <div className="content-box">
+          <h2>Student Course Registrations</h2>
+          <p>Loading registrations...</p>
+        </div>
+      </PortalShell>
+    );
+  }
 
   return (
     <PortalShell>
       <div className="content-box">
         <h2>Student Course Registrations</h2>
         <p>
-          {user?.role === "professor"
+          {["professor", "doctor"].includes(user?.role)
             ? "View students registered in your assigned courses."
             : "View all student course registrations across the system."}
         </p>
@@ -81,8 +187,8 @@ export default function StudentRegistrationsPage() {
 
         <hr />
 
-        <label>
-          <strong>Filter by course</strong>
+        <label className="field-label">
+          Filter by course
           <select
             className="form-select"
             value={selectedCourse}
@@ -90,16 +196,27 @@ export default function StudentRegistrationsPage() {
           >
             <option value="all">All courses</option>
             {courses.map((course) => (
-              <option key={course.id} value={course.id}>
+              <option key={course.id || course.code} value={getCourseFilterValue(course)}>
                 {course.name} ({course.code})
               </option>
             ))}
           </select>
         </label>
 
+        {selectedCourseObject && (
+          <button
+            className="secondary-action-btn inline-clear-btn"
+            type="button"
+            onClick={() => setSelectedCourse("all")}
+          >
+            Clear filter / show all courses
+          </button>
+        )}
+
         <h3>Course Summary</h3>
-        {courses.map((course) => (
-          <div className="info-card compact-card" key={course.id}>
+        {filteredCourses.length === 0 && <p>No course matches the selected filter.</p>}
+        {filteredCourses.map((course) => (
+          <div className="info-card compact-card" key={course.id || course.code}>
             <h3>
               {course.name} ({course.code})
             </h3>

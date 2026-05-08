@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
 import { getCurrentAppUser } from "../../lib/auth";
@@ -23,7 +23,7 @@ export default function ViewMessagesPage() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !["admin", "professor"].includes(currentUser.role)) {
+      if (!currentUser || !["admin", "professor", "doctor"].includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
@@ -34,6 +34,14 @@ export default function ViewMessagesPage() {
     }
     init();
   }, [router]);
+
+  const sortedMessages = useMemo(
+    () =>
+      messages
+        .slice()
+        .sort((a, b) => new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date)),
+    [messages]
+  );
 
   async function refreshMessages(currentUser = user) {
     if (!currentUser) return;
@@ -57,20 +65,23 @@ export default function ViewMessagesPage() {
     });
 
     setFeedback(result.message);
-    setReplyText({
-      ...replyText,
-      [message.id]: "",
-    });
-    await refreshMessages();
+
+    if (result.success) {
+      setReplyText({
+        ...replyText,
+        [message.id]: "",
+      });
+      await refreshMessages();
+    }
   }
 
   return (
     <PortalShell>
       <div className="content-box">
-        <h2>Student Messages</h2>
+        <h2>Message History</h2>
         <p>
-          Doctors can view messages sent by students and send replies. Students
-          receive replies in their inbox.
+          View previous messages sorted by date. Each message shows the sender,
+          content, and delivery time.
         </p>
 
         <hr />
@@ -85,74 +96,70 @@ export default function ViewMessagesPage() {
           </div>
         )}
 
-        {messages.length === 0 && <p>No student messages yet.</p>}
+        {sortedMessages.length === 0 && <p>No messages yet.</p>}
 
-        {messages
-          .slice()
-          .reverse()
-          .map((message) => {
-            const studentCourses = registrations.filter(
-              (item) => (item.studentEmail || "").toLowerCase() === (message.senderEmail || "").toLowerCase()
-            );
+        {sortedMessages.map((message) => {
+          const studentCourses = registrations.filter(
+            (item) => (item.studentEmail || "").toLowerCase() === (message.senderEmail || "").toLowerCase()
+          );
+          const isReplyFromStaff = ["admin", "professor", "doctor"].includes(user?.role) && message.senderId === user?.id;
 
-            return (
-              <div className="info-card" key={message.id}>
-                <div className="card-title-row">
-                  <h3>From: {message.sender}</h3>
-                  <span className={`status-pill ${message.status === "replied" ? "done" : "open"}`}>
-                    {message.status === "replied" ? "Replied" : "Open"}
-                  </span>
-                </div>
-
-                <p>
-                  <strong>Student Email:</strong> {message.senderEmail}
-                </p>
-
-                <p>
-                  <strong>To:</strong> {message.receiver}
-                </p>
-
-                <p>
-                  <strong>Message:</strong> {message.content}
-                </p>
-
-                {studentCourses.length > 0 && (
-                  <div className="mini-list">
-                    <strong>Student registered courses:</strong>
-                    {studentCourses.map((course) => (
-                      <span key={course.id}>
-                        {course.courseName} ({course.courseCode})
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <p className="meta">Sent: {message.date}</p>
-                {message.lastReplyDate && (
-                  <p className="meta">Last reply: {message.lastReplyDate}</p>
-                )}
-
-                <textarea
-                  className="form-textarea"
-                  placeholder="Write reply..."
-                  value={replyText[message.id] || ""}
-                  onChange={(e) =>
-                    setReplyText({
-                      ...replyText,
-                      [message.id]: e.target.value,
-                    })
-                  }
-                />
-
-                <button
-                  className="small-action-btn"
-                  onClick={() => handleReply(message)}
-                >
-                  Send Reply
-                </button>
+          return (
+            <div className="info-card" key={message.id}>
+              <div className="card-title-row">
+                <h3>{message.sender} → {message.receiver}</h3>
+                <span className={`status-pill ${message.status === "replied" ? "done" : "open"}`}>
+                  {message.status === "replied" ? "Replied" : "Open"}
+                </span>
               </div>
-            );
-          })}
+
+              <p>
+                <strong>Sender:</strong> {message.sender} {message.senderEmail ? `(${message.senderEmail})` : ""}
+              </p>
+
+              <p>
+                <strong>Content:</strong> {message.content}
+              </p>
+
+              {studentCourses.length > 0 && (
+                <div className="mini-list">
+                  <strong>Student registered courses:</strong>
+                  {studentCourses.map((course) => (
+                    <span key={course.id}>
+                      {course.courseName} ({course.courseCode})
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <p className="meta">Sent: {message.date}</p>
+
+              {!isReplyFromStaff && message.senderEmail && studentCourses.length > 0 && (
+                <>
+                  <textarea
+                    className="form-textarea"
+                    placeholder="Write reply..."
+                    value={replyText[message.id] || ""}
+                    onChange={(e) =>
+                      setReplyText({
+                        ...replyText,
+                        [message.id]: e.target.value,
+                      })
+                    }
+                    maxLength={1000}
+                  />
+
+                  <button
+                    className="small-action-btn"
+                    onClick={() => handleReply(message)}
+                  >
+                    Send Reply
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
     </PortalShell>
   );
