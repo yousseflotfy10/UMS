@@ -14,22 +14,16 @@ import {
   cancelClassroomBooking,
 } from "../../lib/booking";
 import { getCurrentAppUser } from "../../lib/auth";
-import { getRegistrationStats, getCourses } from "../../lib/community";
-
-const STAFF_ROLES = ["admin", "professor", "doctor"];
-const DOCTOR_ROLES = ["professor", "doctor"];
 
 export default function BookingPage() {
   const router = useRouter();
   const [classrooms, setClassrooms] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [user, setUser] = useState(null);
-  const [bookableCourses, setBookableCourses] = useState([]);
   const [timeSlots, setTimeSlots] = useState([]);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [courseId, setCourseId] = useState("");
   const [classroom, setClassroom] = useState("");
   const [date, setDate] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
@@ -37,26 +31,14 @@ export default function BookingPage() {
   const [message, setMessage] = useState("");
 
   const [editingId, setEditingId] = useState(null);
-  const [editCourseId, setEditCourseId] = useState("");
   const [editClassroom, setEditClassroom] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editTimeSlot, setEditTimeSlot] = useState("");
   const [editPurpose, setEditPurpose] = useState("");
   const [editAvailableRooms, setEditAvailableRooms] = useState([]);
 
-  const selectedCourse = useMemo(
-    () => bookableCourses.find((course) => String(course.id) === String(courseId)),
-    [bookableCourses, courseId]
-  );
-
-  function canManageBooking(booking) {
-    if (!user || !booking) return false;
-    if (user.role === "admin") return true;
-
-    return (
-      DOCTOR_ROLES.includes(user.role) &&
-      String(booking.bookedBy || "") === String(user.id || "")
-    );
+  function canManageBooking() {
+    return user?.role === "admin";
   }
 
   async function refreshBookingData(nextDate = date, nextTimeSlot = timeSlot) {
@@ -76,22 +58,16 @@ export default function BookingPage() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !STAFF_ROLES.includes(currentUser.role)) {
+      if (!currentUser || currentUser.role !== "admin") {
         router.push("/signin");
         return;
       }
 
-      const courses = currentUser.role === "admin"
-        ? await getCourses()
-        : await getRegistrationStats(currentUser.name);
-
       setUser(currentUser);
-      setBookableCourses(courses || []);
-      if (courses?.length) setCourseId(String(courses[0].id));
-
       await refreshBookingData("", "");
       setLoading(false);
     }
+
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
@@ -115,10 +91,9 @@ export default function BookingPage() {
     async function updateEditAvailability() {
       if (!editingId) return;
       const rooms = (await getAvailableClassrooms(editDate, editTimeSlot, editingId)) || [];
-      const currentRoom = editClassroom ? [{ id: `current-${editingId}`, name: editClassroom }] : [];
       const merged = [...rooms];
       if (editClassroom && !merged.some((room) => room.name === editClassroom)) {
-        merged.unshift(currentRoom[0]);
+        merged.unshift({ id: `current-${editingId}`, name: editClassroom });
       }
       setEditAvailableRooms(merged);
     }
@@ -126,17 +101,12 @@ export default function BookingPage() {
     updateEditAvailability();
   }, [editingId, editDate, editTimeSlot, editClassroom]);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
     setMessage("");
 
-    if (!user || !STAFF_ROLES.includes(user.role)) {
-      setMessage("Only staff can book classrooms.");
-      return;
-    }
-
-    if (!courseId || !selectedCourse) {
-      setMessage("Please select the course for this classroom booking.");
+    if (!canManageBooking()) {
+      setMessage("Only admin can book classrooms.");
       return;
     }
 
@@ -161,9 +131,6 @@ export default function BookingPage() {
         date,
         timeSlot,
         purpose: purpose.trim(),
-        courseId: selectedCourse.id,
-        courseName: selectedCourse.name,
-        courseCode: selectedCourse.code,
       },
       user.id
     );
@@ -178,13 +145,12 @@ export default function BookingPage() {
   }
 
   function startEdit(booking) {
-    if (!canManageBooking(booking)) {
-      setMessage("Doctors can edit only their own classroom bookings.");
+    if (!canManageBooking()) {
+      setMessage("Only admin can edit classroom bookings.");
       return;
     }
 
     setEditingId(booking.id);
-    setEditCourseId(String(booking.courseId || ""));
     setEditClassroom(booking.classroom || "");
     setEditDate(booking.date || "");
     setEditTimeSlot(booking.timeSlot || "");
@@ -194,7 +160,6 @@ export default function BookingPage() {
 
   function cancelEdit() {
     setEditingId(null);
-    setEditCourseId("");
     setEditClassroom("");
     setEditDate("");
     setEditTimeSlot("");
@@ -202,28 +167,23 @@ export default function BookingPage() {
     setEditAvailableRooms([]);
   }
 
-  async function handleUpdateBooking(e) {
-    e.preventDefault();
+  async function handleUpdateBooking(event) {
+    event.preventDefault();
     setMessage("");
 
-    const bookingToUpdate = bookings.find(
-      (booking) => String(booking.id) === String(editingId)
-    );
-
-    if (!canManageBooking(bookingToUpdate)) {
-      setMessage("Doctors can edit only their own classroom bookings.");
+    if (!canManageBooking()) {
+      setMessage("Only admin can update classroom bookings.");
       return;
     }
 
     if (!editingId) return;
 
-    if (!editCourseId || !editClassroom || !editDate || !editTimeSlot || !editPurpose.trim()) {
+    if (!editClassroom || !editDate || !editTimeSlot || !editPurpose.trim()) {
       setMessage("Please complete all booking edit fields.");
       return;
     }
 
     const result = await updateClassroomBooking(editingId, {
-      courseId: editCourseId,
       classroom: editClassroom,
       date: editDate,
       timeSlot: editTimeSlot,
@@ -239,16 +199,12 @@ export default function BookingPage() {
   }
 
   async function handleCancelBooking(bookingId) {
-    const bookingToDelete = bookings.find(
-      (booking) => String(booking.id) === String(bookingId)
-    );
-
-    if (!canManageBooking(bookingToDelete)) {
-      setMessage("Doctors can delete only their own classroom bookings.");
+    if (!canManageBooking()) {
+      setMessage("Only admin can cancel classroom bookings.");
       return;
     }
 
-    const confirmed = window.confirm("Delete this classroom booking?");
+    const confirmed = window.confirm("Cancel this classroom booking?");
     if (!confirmed) return;
 
     const result = await cancelClassroomBooking(bookingId);
@@ -267,38 +223,28 @@ export default function BookingPage() {
     );
   }, [bookings, date, timeSlot]);
 
-  const visibleBookings = useMemo(() => {
-    if (user?.role === "admin") return bookings;
-    const doctorCourseIds = new Set(bookableCourses.map((course) => Number(course.id)));
-    return bookings.filter((booking) => doctorCourseIds.has(Number(booking.courseId)));
-  }, [bookings, bookableCourses, user?.role]);
-
-
   function renderBookingCard(item) {
     return (
       <div className="info-card" key={item.id}>
         <div className="card-title-row">
           <h3>{item.classroom}</h3>
-          {canManageBooking(item) && (
-            <div className="action-row compact-actions">
-              <button
-                className="small-action-btn"
-                type="button"
-                onClick={() => startEdit(item)}
-              >
-                Edit
-              </button>
-              <button
-                className="danger-action-btn"
-                type="button"
-                onClick={() => handleCancelBooking(item.id)}
-              >
-                Delete
-              </button>
-            </div>
-          )}
+          <div className="action-row compact-actions">
+            <button
+              className="small-action-btn"
+              type="button"
+              onClick={() => startEdit(item)}
+            >
+              Edit
+            </button>
+            <button
+              className="danger-action-btn"
+              type="button"
+              onClick={() => handleCancelBooking(item.id)}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-        <p><strong>Course:</strong> {item.courseLabel}</p>
         <p><strong>Date:</strong> {item.date}</p>
         <p><strong>Time:</strong> {item.timeSlot}</p>
         <p><strong>Purpose:</strong> {item.purpose}</p>
@@ -321,54 +267,26 @@ export default function BookingPage() {
     <PortalShell>
       <div className="content-box">
         <h2>Classroom Booking</h2>
-        <p>
-          Doctors can book an available room for assigned courses, then edit or delete
-          their own bookings. Admins can manage every booking.
-        </p>
+        <p>Admin can create, edit, or cancel classroom bookings.</p>
         <p className="meta">Total rooms loaded: {classrooms.length}</p>
 
-        {bookableCourses.length === 0 && (
-          <p className="message">
-            No courses are available for this account yet. Add or assign a course first.
-          </p>
-        )}
-
-        {classrooms.some((room) => room.fallback) && (
-          <p className="message">
-            Rooms are being shown from fallback data. You can still choose and book a room, but running the Supabase seed file is recommended.
-          </p>
+        {message && (
+          <div className={message.includes("successfully") ? "message success" : "message"}>
+            {message}
+          </div>
         )}
 
         <hr />
 
         <form onSubmit={handleSubmit} className="stacked-form">
           <label className="field-label">
-            Course
-            <select
-              className="form-select"
-              value={courseId}
-              onChange={(e) => {
-                setCourseId(e.target.value);
-                setMessage("");
-              }}
-            >
-              <option value="">Select course</option>
-              {bookableCourses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.name} ({course.code}) {course.registeredCount !== undefined ? `· ${course.registeredCount || 0} students` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field-label">
             Date
             <input
               className="form-input"
               type="date"
               value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
+              onChange={(event) => {
+                setDate(event.target.value);
                 setClassroom("");
                 setMessage("");
               }}
@@ -380,17 +298,15 @@ export default function BookingPage() {
             <select
               className="form-select"
               value={timeSlot}
-              onChange={(e) => {
-                setTimeSlot(e.target.value);
+              onChange={(event) => {
+                setTimeSlot(event.target.value);
                 setClassroom("");
                 setMessage("");
               }}
             >
               <option value="">Select time slot</option>
               {timeSlots.map((slot) => (
-                <option key={slot.id} value={slot.label}>
-                  {slot.label}
-                </option>
+                <option key={slot.id} value={slot.label}>{slot.label}</option>
               ))}
             </select>
           </label>
@@ -399,13 +315,7 @@ export default function BookingPage() {
             <div className="availability-panel">
               <div className="card-title-row">
                 <h3>Available Rooms</h3>
-                <span
-                  className={
-                    availableRooms.length > 0
-                      ? "status-pill done"
-                      : "status-pill open"
-                  }
-                >
+                <span className={availableRooms.length > 0 ? "status-pill done" : "status-pill open"}>
                   {availableRooms.length} available
                 </span>
               </div>
@@ -416,11 +326,7 @@ export default function BookingPage() {
                     <button
                       type="button"
                       key={room.id}
-                      className={
-                        classroom === room.name
-                          ? "room-chip selected"
-                          : "room-chip"
-                      }
+                      className={classroom === room.name ? "room-chip selected" : "room-chip"}
                       aria-pressed={classroom === room.name}
                       onClick={(event) => {
                         event.preventDefault();
@@ -433,10 +339,7 @@ export default function BookingPage() {
                   ))}
                 </div>
               ) : (
-                <p className="meta">
-                  No rooms are available for this slot. Choose another date or
-                  time slot.
-                </p>
+                <p className="meta">No rooms are available for this slot.</p>
               )}
             </div>
           )}
@@ -446,17 +349,15 @@ export default function BookingPage() {
             <select
               className="form-select"
               value={classroom}
-              onChange={(e) => {
-                setClassroom(e.target.value);
+              onChange={(event) => {
+                setClassroom(event.target.value);
                 setMessage("");
               }}
               disabled={!date || !timeSlot || availableRooms.length === 0}
             >
               <option value="">Select available classroom</option>
               {availableRooms.map((room) => (
-                <option key={room.id} value={room.name}>
-                  {room.name}
-                </option>
+                <option key={room.id} value={room.name}>{room.name}</option>
               ))}
             </select>
           </label>
@@ -465,27 +366,17 @@ export default function BookingPage() {
             className="form-textarea"
             placeholder="Booking purpose"
             value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
+            onChange={(event) => setPurpose(event.target.value)}
           />
 
           <button
             className="primary-btn"
             type="submit"
-            disabled={!courseId || !date || !timeSlot || availableRooms.length === 0}
+            disabled={!date || !timeSlot || availableRooms.length === 0}
           >
-            Register Classroom
+            Book Classroom
           </button>
         </form>
-
-        {message && (
-          <div
-            className={
-              message.includes("successfully") ? "message success" : "message"
-            }
-          >
-            {message}
-          </div>
-        )}
 
         <hr />
 
@@ -500,36 +391,26 @@ export default function BookingPage() {
           </>
         ) : (
           <>
-            <h3>{user?.role === "admin" ? "All Room Bookings" : "Your Course Room Bookings"}</h3>
-            {visibleBookings.length === 0 && <p>No classroom bookings found.</p>}
-            {visibleBookings.map((item) => renderBookingCard(item))}
+            <h3>All Classroom Bookings</h3>
+            {bookings.length === 0 && <p>No classroom bookings found.</p>}
+            {bookings.map((item) => renderBookingCard(item))}
           </>
         )}
 
-        {editingId && canManageBooking(bookings.find((booking) => String(booking.id) === String(editingId))) && (
+        {editingId && (
           <>
             <hr />
             <div className="info-card edit-panel">
               <h3>Edit Booking</h3>
               <form onSubmit={handleUpdateBooking} className="stacked-form">
                 <label className="field-label">
-                  Course
-                  <select className="form-select" value={editCourseId} onChange={(e) => setEditCourseId(e.target.value)}>
-                    <option value="">Select course</option>
-                    {bookableCourses.map((course) => (
-                      <option key={course.id} value={course.id}>{course.name} ({course.code})</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field-label">
                   Date
-                  <input className="form-input" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                  <input className="form-input" type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} />
                 </label>
 
                 <label className="field-label">
                   Time Slot
-                  <select className="form-select" value={editTimeSlot} onChange={(e) => setEditTimeSlot(e.target.value)}>
+                  <select className="form-select" value={editTimeSlot} onChange={(event) => setEditTimeSlot(event.target.value)}>
                     <option value="">Select time slot</option>
                     {timeSlots.map((slot) => <option key={slot.id} value={slot.label}>{slot.label}</option>)}
                   </select>
@@ -537,13 +418,13 @@ export default function BookingPage() {
 
                 <label className="field-label">
                   Classroom
-                  <select className="form-select" value={editClassroom} onChange={(e) => setEditClassroom(e.target.value)}>
+                  <select className="form-select" value={editClassroom} onChange={(event) => setEditClassroom(event.target.value)}>
                     <option value="">Select classroom</option>
                     {editAvailableRooms.map((room) => <option key={room.id} value={room.name}>{room.name}</option>)}
                   </select>
                 </label>
 
-                <textarea className="form-textarea" value={editPurpose} onChange={(e) => setEditPurpose(e.target.value)} placeholder="Booking purpose" />
+                <textarea className="form-textarea" value={editPurpose} onChange={(event) => setEditPurpose(event.target.value)} placeholder="Booking purpose" />
 
                 <div className="action-row">
                   <button className="small-action-btn" type="submit">Save Changes</button>

@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,6 @@ export default function SignUpPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [studentId, setStudentId] = useState("");
 
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
@@ -24,7 +23,7 @@ export default function SignUpPage() {
 
     const cleanEmail = normalizeEmail(email);
 
-    if (!name.trim() || !cleanEmail || !password.trim() || !studentId.trim()) {
+    if (!name.trim() || !cleanEmail || !password.trim()) {
       setMessage("Please fill all required fields.");
       return;
     }
@@ -39,17 +38,11 @@ export default function SignUpPage() {
       return;
     }
 
-    if (!/^[0-9]{2}P[0-9]{4}$/i.test(studentId.trim())) {
-      setMessage("Student ID must follow format YYP#### (example: 23P0216).");
-      return;
-    }
-
     const result = await registerUser({
       name: name.trim(),
       email: cleanEmail,
       password,
-      studentId: studentId.trim().toUpperCase(),
-      role: "student", 
+      role: "student",
     });
 
     if (!result.success) {
@@ -103,13 +96,6 @@ export default function SignUpPage() {
                 onChange={(event) => setPassword(event.target.value)}
               />
 
-              <input
-                className="form-input"
-                placeholder="Student ID (YYP####)"
-                value={studentId}
-                onChange={(event) => setStudentId(event.target.value.toUpperCase())}
-              />
-
               <button className="primary-btn">Create Account</button>
 
               {message && (
@@ -132,5 +118,3 @@ export default function SignUpPage() {
     </main>
   );
 }
-
-

@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
 import { getCurrentAppUser } from "../../lib/auth";
 import {
-  getAllRegistrations,
   getProfessorRegistrations,
   getRegistrationStats,
 } from "../../lib/community";
-import { getGrades, getGradesForCourses, uploadGrade } from "../../lib/grades";
+import { getGradesForCourses, uploadGrade } from "../../lib/grades";
 
 export default function UploadGradesPage() {
   const router = useRouter();
@@ -28,26 +27,19 @@ export default function UploadGradesPage() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !["admin", "professor", "doctor"].includes(currentUser.role)) {
+      if (!currentUser || !["professor", "doctor"].includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
 
-      const visibleCourses = await getRegistrationStats(
-        ["professor", "doctor"].includes(currentUser.role) ? currentUser.name : ""
-      );
-      const visibleRegistrations =
-        ["professor", "doctor"].includes(currentUser.role)
-          ? await getProfessorRegistrations(currentUser.name)
-          : await getAllRegistrations();
+      const visibleCourses = await getRegistrationStats(currentUser.name);
+      const visibleRegistrations = await getProfessorRegistrations(currentUser.name);
 
       setUser(currentUser);
       setCourses(visibleCourses);
       setRegistrations(visibleRegistrations);
       setGrades(
-        ["professor", "doctor"].includes(currentUser.role)
-          ? await getGradesForCourses(visibleCourses.map((course) => course.code))
-          : await getGrades()
+        await getGradesForCourses(visibleCourses.map((course) => course.code))
       );
       setCourseCode(visibleCourses[0]?.code || "");
     }
@@ -96,9 +88,7 @@ export default function UploadGradesPage() {
 
     if (result.success) {
       setGrades(
-        ["professor", "doctor"].includes(user?.role)
-          ? await getGradesForCourses(courses.map((course) => course.code))
-          : await getGrades()
+        await getGradesForCourses(courses.map((course) => course.code))
       );
       setStudentEmail("");
       setGrade("");

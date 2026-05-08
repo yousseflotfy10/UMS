@@ -182,22 +182,6 @@ export async function getBookings() {
   });
 }
 
-export async function getBookingsForRegisteredCourses(userId) {
-  if (!userId) return [];
-
-  const { data: registrations, error } = await supabase
-    .from("registrations")
-    .select("course_id")
-    .eq("user_id", userId);
-
-  if (error || !registrations || registrations.length === 0) return [];
-
-  const courseIds = registrations.map((item) => Number(item.course_id));
-  const bookings = await getBookings();
-
-  return bookings.filter((booking) => courseIds.includes(Number(booking.courseId)));
-}
-
 export async function getAvailableClassrooms(date, timeSlot, ignoredBookingId = null) {
   const rooms = await getClassrooms();
 
@@ -223,7 +207,7 @@ export async function getAvailableClassrooms(date, timeSlot, ignoredBookingId = 
   return rooms.filter((room) => !bookedRoomNames.has(normalize(room.name)));
 }
 
-async function buildBookingPayload(booking, { requireCourse = true } = {}) {
+async function buildBookingPayload(booking, { requireCourse = false } = {}) {
   const classrooms = await getClassrooms();
   const slots = await getTimeSlots();
 
@@ -304,10 +288,9 @@ export async function bookClassroom(booking, bookedBy) {
     booked_by: bookedBy || null,
   };
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("classroom_bookings")
-    .insert([payload])
-    .select();
+    .insert([payload]);
 
   if (error) {
     console.error("CLASSROOM BOOKING ERROR:", error);
@@ -317,7 +300,6 @@ export async function bookClassroom(booking, bookedBy) {
     };
   }
 
-  console.log("CLASSROOM BOOKING SAVED:", data);
 
   return {
     success: true,

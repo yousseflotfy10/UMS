@@ -8,7 +8,6 @@ import {
   getCourses,
   getRegistrations,
   registerCourse,
-  dropCourse,
   getPrerequisiteSummary,
   getCourseScheduleLabel,
 } from "../../lib/community";
@@ -30,6 +29,12 @@ export default function CoursesPage() {
         router.push("/signin");
         return;
       }
+
+      if (currentUser.role !== "student") {
+        router.push("/dashboard");
+        return;
+      }
+
       setUser(currentUser);
       const data = await getCourses();
       setCourses(data || []);
@@ -75,13 +80,6 @@ export default function CoursesPage() {
   async function handleRegister(courseId) {
     setFeedback("");
     const result = await registerCourse(user, courseId);
-    setFeedback(result.message);
-    await reloadRegistrations();
-  }
-
-  async function handleDrop(courseId) {
-    setFeedback("");
-    const result = await dropCourse(user, courseId);
     setFeedback(result.message);
     await reloadRegistrations();
   }
@@ -152,7 +150,7 @@ export default function CoursesPage() {
                 <p><strong>Prerequisites:</strong> {getPrerequisiteSummary(course, courses)}</p>
 
                 {isRegistered(course.id) ? (
-                  <button className="danger-action-btn" onClick={() => handleDrop(course.id)}>Drop Course</button>
+                  <span className="status-pill done">Registered</span>
                 ) : (
                   <button className="small-action-btn" onClick={() => handleRegister(course.id)}>Register</button>
                 )}
@@ -170,7 +168,6 @@ export default function CoursesPage() {
                 <p><strong>Doctor:</strong> {item.professor || "Not assigned"}</p>
                 <p><strong>Schedule:</strong> {getCourseScheduleLabel(item)}</p>
                 <p className="meta">Registered on: {item.date}</p>
-                <button className="danger-action-btn" onClick={() => handleDrop(item.courseId)}>Drop Course</button>
               </div>
             ))}
           </section>

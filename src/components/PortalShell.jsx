@@ -4,10 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logoutUser, getCurrentAppUser } from "../lib/auth";
 
+const STAFF_ROLES = ["professor", "doctor"];
+
 export default function PortalShell({ children, showLogout = true }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const role = user?.role || "student";
+  const isStudent = role === "student";
+  const isStaff = STAFF_ROLES.includes(role);
+  const isAdmin = role === "admin";
 
   useEffect(() => {
     let mounted = true;
@@ -28,76 +33,48 @@ export default function PortalShell({ children, showLogout = true }) {
     };
   }, []);
 
-  async function logout(e) {
-    e.preventDefault();
+  async function logout(event) {
+    event.preventDefault();
     await logoutUser();
     router.push("/signin");
   }
 
-  function goDashboard(e) {
-    e.preventDefault();
-
-    if (role === "admin") router.push("/adminDashboard");
-    else if ((role === "professor" || role === "doctor")) router.push("/professorDashboard");
-    else router.push("/dashboard");
+  function goDashboard(event) {
+    event.preventDefault();
+    router.push("/dashboard");
   }
 
-  function goMessages(e) {
-    e.preventDefault();
-
-    if (role === "admin" || (role === "professor" || role === "doctor")) {
-      router.push("/viewMessages");
-    } else {
-      router.push("/messages");
-    }
-  }
-
-  function goProfile(e) {
-    e.preventDefault();
+  function goProfile(event) {
+    event.preventDefault();
     router.push("/staffProfile");
   }
 
-  function goAnnouncements(e) {
-    e.preventDefault();
-
-    if (role === "admin" || (role === "professor" || role === "doctor")) {
-      router.push("/addAnnouncements");
-    } else {
-      router.push("/announcements");
-    }
+  function goMessages(event) {
+    event.preventDefault();
+    router.push(isStudent ? "/messages" : "/viewMessages");
   }
 
-  function goCourses(e) {
-    e.preventDefault();
-
-    if (role === "admin") {
-      router.push("/addCourses");
-    } else if ((role === "professor" || role === "doctor")) {
-      router.push("/studentRegistrations");
-    } else {
-      router.push("/courses");
-    }
+  function goCourses(event) {
+    event.preventDefault();
+    router.push("/courses");
   }
 
-  function goGrades(e) {
-    e.preventDefault();
-
-    if ((role === "professor" || role === "doctor")) {
-      router.push("/uploadGrades");
-    } else {
-      router.push("/viewGrades");
-    }
+  function goGrades(event) {
+    event.preventDefault();
+    router.push(isStaff ? "/uploadGrades" : "/viewGrades");
   }
 
-  function goRooms(e) {
-    e.preventDefault();
-
-    if (role === "admin" || (role === "professor" || role === "doctor")) {
-      router.push("/BookingPage");
-    } else {
-      router.push("/viewBooking");
-    }
+  function goRooms(event) {
+    event.preventDefault();
+    router.push(isAdmin ? "/BookingPage" : "/viewBooking");
   }
+
+  function goAnnouncements(event) {
+    event.preventDefault();
+    router.push("/announcements");
+  }
+
+  const roleLabel = isAdmin ? "Admin" : isStaff ? "Doctor" : role;
 
   return (
     <main className="portal-page">
@@ -106,33 +83,20 @@ export default function PortalShell({ children, showLogout = true }) {
           <h1>UMS</h1>
           {user && (
             <p className="portal-user-line">
-              {user.name} · {(role === "professor" || role === "doctor") ? "Doctor" : role}
+              {user.name} · {roleLabel}
             </p>
           )}
         </header>
 
         <nav className="portal-tabs">
           <a href="#" onClick={goDashboard}>Dashboard</a>
-
           <a href="#" onClick={goProfile}>Profile</a>
-
-          <a href="#" onClick={goMessages}>Messages</a>
-
-          <a href="#" onClick={goCourses}>
-            {role === "admin" ? "Courses" : (role === "professor" || role === "doctor") ? "Registrations" : "Courses"}
-          </a>
-
-          {((role === "professor" || role === "doctor") || role === "student") && (
-            <a href="#" onClick={goGrades}>Grades</a>
-          )}
-
+          {(isStudent || isStaff) && <a href="#" onClick={goMessages}>Messages</a>}
+          {isStudent && <a href="#" onClick={goCourses}>Courses</a>}
+          {(isStudent || isStaff) && <a href="#" onClick={goGrades}>Grades</a>}
           <a href="#" onClick={goRooms}>Rooms</a>
-
           <a href="#" onClick={goAnnouncements}>Announcements</a>
-
-          {showLogout && (
-            <a href="#" onClick={logout}>Log out</a>
-          )}
+          {showLogout && <a href="#" onClick={logout}>Log out</a>}
         </nav>
 
         <div className="portal-content">{children}</div>

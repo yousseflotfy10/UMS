@@ -6,16 +6,15 @@ import PortalShell from "../../components/PortalShell";
 import { getCurrentAppUser } from "../../lib/auth";
 import {
   getAnnouncements,
-  getProfessors,
   addAnnouncement,
   getRegistrationStats,
-  getCourses,
 } from "../../lib/community";
+
+const DOCTOR_ROLES = ["professor", "doctor"];
 
 export default function AddAnnouncementsPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [professors, setProfessors] = useState([]);
   const [courses, setCourses] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
 
@@ -29,20 +28,15 @@ export default function AddAnnouncementsPage() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !["admin", "professor", "doctor"].includes(currentUser.role)) {
+      if (!currentUser || !DOCTOR_ROLES.includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
 
-      const visibleCourses =
-        ["professor", "doctor"].includes(currentUser.role)
-          ? await getRegistrationStats(currentUser.name)
-          : await getCourses();
+      const visibleCourses = await getRegistrationStats(currentUser.name);
 
       setUser(currentUser);
-      const profs = await getProfessors();
-      setProfessors(profs.map((item) => item.name));
-      setProfessor(["professor", "doctor"].includes(currentUser.role) ? currentUser.name : "");
+      setProfessor(currentUser.name);
       setCourses(visibleCourses);
       setAnnouncements(
         (await getAnnouncements()).sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -74,8 +68,6 @@ export default function AddAnnouncementsPage() {
       setAnnouncements(
         (await getAnnouncements()).sort((a, b) => new Date(b.date) - new Date(a.date))
       );
-
-      if (user?.role === "admin") setProfessor("");
       setTargetCourseId("all");
       setTitle("");
       setContent("");
@@ -94,23 +86,7 @@ export default function AddAnnouncementsPage() {
         <hr />
 
         <form onSubmit={handleSubmit}>
-          {user?.role === "admin" ? (
-            <select
-              className="form-select"
-              value={professor}
-              onChange={(e) => setProfessor(e.target.value)}
-            >
-              <option value="">Select doctor</option>
-              <option value="System Admin">System Admin</option>
-              {professors.map((prof) => (
-                <option key={prof} value={prof}>
-                  {prof}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input className="form-input" value={professor} disabled />
-          )}
+          <input className="form-input" value={professor} disabled />
 
           <select
             className="form-select"

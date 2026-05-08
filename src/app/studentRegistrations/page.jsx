@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import PortalShell from "../../components/PortalShell";
 import { getCurrentAppUser } from "../../lib/auth";
 import {
-  getAllRegistrations,
-  getCourses,
   getProfessorRegistrations,
   getRegistrationStats,
 } from "../../lib/community";
+
+const DOCTOR_ROLES = ["professor", "doctor"];
 
 function normalizeValue(value) {
   return String(value ?? "").trim().toLowerCase();
@@ -85,7 +85,6 @@ function registrationMatchesFilter(registration, selectedCourse) {
 
 export default function StudentRegistrationsPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
   const [courses, setCourses] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState("all");
@@ -95,22 +94,15 @@ export default function StudentRegistrationsPage() {
     async function init() {
       const currentUser = await getCurrentAppUser();
 
-      if (!currentUser || !["admin", "professor", "doctor"].includes(currentUser.role)) {
+      if (!currentUser || !DOCTOR_ROLES.includes(currentUser.role)) {
         router.push("/signin");
         return;
       }
 
-      const isDoctor = ["professor", "doctor"].includes(currentUser.role);
-      const visibleRegistrations = isDoctor
-        ? await getProfessorRegistrations(currentUser.name)
-        : await getAllRegistrations();
+      const visibleRegistrations = await getProfessorRegistrations(currentUser.name);
+      const visibleCourses = await getRegistrationStats(currentUser.name);
 
-      const visibleCourses = await getRegistrationStats(
-        isDoctor ? currentUser.name : ""
-      );
-
-      const fallbackCourses = visibleCourses.length ? visibleCourses : await getCourses();
-      const coursesWithCounts = fallbackCourses.map((course) => ({
+      const coursesWithCounts = visibleCourses.map((course) => ({
         ...course,
         registeredCount: visibleRegistrations.filter((registration) =>
           registrationMatchesFilter(registration, {
@@ -121,7 +113,6 @@ export default function StudentRegistrationsPage() {
         ).length,
       }));
 
-      setUser(currentUser);
       setCourses(coursesWithCounts);
       setRegistrations(visibleRegistrations || []);
       setLoading(false);
@@ -161,11 +152,7 @@ export default function StudentRegistrationsPage() {
     <PortalShell>
       <div className="content-box">
         <h2>Student Course Registrations</h2>
-        <p>
-          {["professor", "doctor"].includes(user?.role)
-            ? "View students registered in your assigned courses."
-            : "View all student course registrations across the system."}
-        </p>
+        <p>View students registered in your assigned courses.</p>
 
         <div className="stats-grid">
           <div className="stat-card">

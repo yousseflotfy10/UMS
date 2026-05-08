@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { isValidEmail, normalizeEmail } from "../../lib/validation";
 import { useRouter } from "next/navigation";
-import { loginUser } from "../../lib/auth";
+import { isValidEmail, normalizeEmail } from "../../lib/validation";
+import { loginUser, logoutUser } from "../../lib/auth";
+
+const ALLOWED_ROLES = ["student", "professor", "doctor", "admin"];
 
 export default function SignInPage() {
   const router = useRouter();
@@ -13,40 +15,45 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-async function handleLogin(event) {
-  event.preventDefault();
-  setMessage("");
+  async function handleLogin(event) {
+    event.preventDefault();
+    setMessage("");
 
-  const cleanEmail = normalizeEmail(email);
+    const cleanEmail = normalizeEmail(email);
 
-  if (!cleanEmail || !password.trim()) {
-    setMessage("Please enter email and password.");
-    return;
+    if (!cleanEmail || !password.trim()) {
+      setMessage("Please enter email and password.");
+      return;
+    }
+
+    if (!isValidEmail(cleanEmail)) {
+      setMessage("Please enter a valid email address.");
+      return;
+    }
+
+    const result = await loginUser(cleanEmail, password);
+
+    if (!result.success || !result.user) {
+      setMessage("Invalid email or password.");
+      return;
+    }
+
+    const user = result.user;
+    const role = user.role || "student";
+
+    if (!ALLOWED_ROLES.includes(role)) {
+      await logoutUser();
+      setMessage("This account type is not available in this sprint version.");
+      return;
+    }
+
+    if (role === "admin") {
+      router.push("/BookingPage");
+      return;
+    }
+
+    router.push("/dashboard");
   }
-
-  if (!isValidEmail(cleanEmail)) {
-    setMessage("Please enter a valid email address.");
-    return;
-  }
-
-  const result = await loginUser(cleanEmail, password);
-
-  // ✅ STOP if login failed
-  if (!result.success || !result.user) {
-    setMessage("Invalid email or password.");
-    return;
-  }
-const user = result.user;
-const role = user.role || "student";
-
-if (role === "admin") {
-  router.push("/adminDashboard");
-} else if ((role === "professor" || role === "doctor")) {
-  router.push("/professorDashboard");
-} else {
-  router.push("/dashboard");
-}
-}
 
   return (
     <main className="portal-page">
@@ -86,7 +93,6 @@ if (role === "admin") {
 
             <div className="side-info">
               <Link href="/signup">Create a new account</Link>
-              <Link href="/forgot-password">Forgot password?</Link>
               <p>
                 Cookies must be enabled in your browser{" "}
                 <span className="help-icon">?</span>

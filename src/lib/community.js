@@ -49,15 +49,12 @@ function mapMessage(row, profileMap = {}) {
     receiverId: row.receiver_id,
     sender: row.sender_name || profileMap[row.sender_id] || "Unknown",
     receiver: row.receiver_name || profileMap[row.receiver_id] || "Unknown",
-    sender_name: row.sender_name || profileMap[row.sender_id] || "Unknown",
-    receiver_name: row.receiver_name || profileMap[row.receiver_id] || "Unknown",
     senderEmail: row.sender_email,
     receiverEmail: row.receiver_email,
     content: row.content,
     status: row.status || "unread",
     date: row.created_at ? new Date(row.created_at).toLocaleString() : "",
     createdAt: row.created_at || "",
-    lastReplyDate: row.updated_at ? new Date(row.updated_at).toLocaleString() : "",
   };
 }
 
@@ -135,6 +132,15 @@ function hasScheduleConflict(courseA, courseB) {
   return Boolean(dayA && slotA && dayB && slotB && dayA === dayB && slotA === slotB);
 }
 
+async function getProfileMap() {
+  const { data: profiles } = await supabase.from("profiles").select("id, name");
+  const profileMap = {};
+  (profiles || []).forEach((profile) => {
+    profileMap[profile.id] = profile.name;
+  });
+  return profileMap;
+}
+
 export async function getProfessors() {
   const { data, error } = await supabase
     .from("profiles")
@@ -155,41 +161,6 @@ export async function getCourseById(courseId) {
 
   if (error) return null;
   return data ? normalizeCourse(data) : null;
-}
-
-async function getProfileMap() {
-  const { data: profiles } = await supabase.from("profiles").select("id, name");
-  const profileMap = {};
-  (profiles || []).forEach((profile) => {
-    profileMap[profile.id] = profile.name;
-  });
-  return profileMap;
-}
-
-export async function getMessages(userId) {
-  const { data, error } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("sender_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error || !data) return [];
-
-  const profileMap = await getProfileMap();
-  return data.map((message) => mapMessage(message, profileMap));
-}
-
-export async function getInbox(userId) {
-  const { data, error } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("receiver_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error || !data) return [];
-
-  const profileMap = await getProfileMap();
-  return data.map((message) => mapMessage(message, profileMap));
 }
 
 export async function getMessageHistory(userId, otherUserId = "") {
@@ -217,19 +188,62 @@ export async function getMessagesForUser(user) {
 
   const profileMap = await getProfileMap();
 
-  let query = supabase.from("messages").select("*");
-  if (user.role === "admin") {
-    // Admin can review all student/professor messages.
-  } else if (["professor", "doctor"].includes(user.role)) {
-    query = query.or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
-  } else {
-    query = query.or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) return [];
+  return data.map((row) => mapMessage(row, profileMap));
+}
+
+export async function sendMessage(message) {
+  const senderId = cleanText(message.senderId);
+  const receiverId = cleanText(message.receiverId);
+  const content = cleanText(message.content);
+
+  if (!senderId || !receiverId) {
+    return { success: false, message: "Please select a valid sender and receiver." };
   }
 
-  const { data, error } = await query.order("created_at", { ascending: true });
-  if (error || !data) return [];
+  if (!content) {
+    return { success: false, message: "Message cannot be empty." };
+  }
 
-  return data.map((row) => mapMessage(row, profileMap));
+  if (content.length > 1000) {
+    return { success: false, message: "Message is too long. Please keep it under 1000 characters." };
+  }
+
+  const { data: senderProfile } = await supabase
+    .from("profiles")
+    .select("id, name, email")
+    .eq("id", senderId)
+    .maybeSingle();
+
+  const { data: receiverProfile } = await supabase
+    .from("profiles")
+    .select("id, name, email")
+    .eq("id", receiverId)
+    .maybeSingle();
+
+  if (!senderProfile || !receiverProfile) {
+    return { success: false, message: "Could not find the selected user profile." };
+  }
+
+  const { error } = await supabase.from("messages").insert({
+    sender_id: senderId,
+    receiver_id: receiverId,
+    sender_name: senderProfile.name || null,
+    sender_email: senderProfile.email || null,
+    receiver_name: receiverProfile.name || null,
+    receiver_email: receiverProfile.email || null,
+    content,
+    status: "unread",
+  });
+
+  if (error) return { success: false, message: error.message };
+  return { success: true, message: "Message sent successfully." };
 }
 
 export async function getCourses() {
@@ -242,10 +256,6 @@ export async function getCourses() {
   return (data ?? []).map(normalizeCourse);
 }
 
-export async function getAllRegistrations() {
-  return await getRegistrations();
-}
-
 export async function getRegistrations() {
   const { data, error } = await supabase
     .from("registrations")
@@ -254,9 +264,7 @@ export async function getRegistrations() {
 
   if (error) return [];
 
-  const { data: courses } = await supabase
-    .from("courses")
-    .select("*");
+  const { data: courses } = await supabase.from("courses").select("*");
   const courseMap = {};
   (courses || []).forEach((course) => {
     courseMap[Number(course.id)] = normalizeCourse(course);
@@ -275,11 +283,6 @@ export async function getRegistrations() {
       scheduleTimeSlot: course.scheduleTimeSlot,
     };
   });
-}
-
-export async function getRegistrationsByCourse(courseId) {
-  const all = await getRegistrations();
-  return all.filter((item) => Number(item.courseId) === Number(courseId));
 }
 
 export async function getProfessorRegistrations(professorName) {
@@ -306,181 +309,13 @@ export async function getRegistrationStats(professorName = "") {
   }));
 }
 
-export async function sendMessage(message) {
-  const senderId = cleanText(message.senderId);
-  const receiverId = cleanText(message.receiverId);
-  const content = cleanText(message.content);
-
-  if (!senderId || !receiverId) {
-    return { success: false, message: "Please select a valid sender and receiver." };
-  }
-
-  if (!content) {
-    return { success: false, message: "Message cannot be empty." };
-  }
-
-  if (content.length > 1000) {
-    return { success: false, message: "Message is too long. Please keep it under 1000 characters." };
-  }
-
-  const { data: senderProfile } = await supabase
-    .from("profiles")
-    .select("id, name, email")
-    .eq("id", senderId)
-    .maybeSingle();
-  const { data: receiverProfile } = await supabase
-    .from("profiles")
-    .select("id, name, email")
-    .eq("id", receiverId)
-    .maybeSingle();
-
-  if (!senderProfile || !receiverProfile) {
-    return { success: false, message: "Could not find the selected user profile." };
-  }
-
-  const { error } = await supabase.from("messages").insert({
-    sender_id: senderId,
-    receiver_id: receiverId,
-    sender_name: senderProfile.name || null,
-    sender_email: senderProfile.email || null,
-    receiver_name: receiverProfile.name || null,
-    receiver_email: receiverProfile.email || null,
-    content,
-    status: "unread",
-  });
-
-  if (error) return { success: false, message: error.message };
-  return { success: true, message: "Message sent successfully." };
-}
-
-export async function replyToMessage(reply) {
-  const content = cleanText(reply.content);
-
-  if (!content) {
-    return { success: false, message: "Reply cannot be empty." };
-  }
-
-  if (content.length > 1000) {
-    return { success: false, message: "Reply is too long. Please keep it under 1000 characters." };
-  }
-
-  const { data: receiverProfile } = await supabase
-    .from("profiles")
-    .select("id, name, email")
-    .eq("email", reply.studentEmail)
-    .maybeSingle();
-
-  const { data: senderProfile } = await supabase
-    .from("profiles")
-    .select("id, name, email")
-    .eq("name", reply.professor)
-    .in("role", ["professor", "doctor", "admin"])
-    .maybeSingle();
-
-  if (!receiverProfile || !senderProfile) {
-    return { success: false, message: "Could not resolve sender/receiver for reply." };
-  }
-
-  const { error: insertError } = await supabase.from("messages").insert({
-    sender_id: senderProfile.id,
-    receiver_id: receiverProfile.id,
-    sender_name: senderProfile.name,
-    sender_email: senderProfile.email,
-    receiver_name: receiverProfile.name,
-    receiver_email: receiverProfile.email,
-    content,
-    status: "unread",
-  });
-
-  if (insertError) return { success: false, message: insertError.message };
-
-  if (reply.originalMessageId) {
-    await supabase
-      .from("messages")
-      .update({ status: "replied" })
-      .eq("id", reply.originalMessageId);
-  }
-
-  return { success: true, message: "Reply sent successfully." };
-}
-
-export async function getAnnouncements() {
-  const { data, error } = await supabase
-    .from("announcements")
-    .select("id, author_name, title, content, audience, target_course_id, target_course_name, created_at")
-    .order("created_at", { ascending: false });
-
-  if (error) return [];
-
-  return (data ?? []).map((item) => ({
-    id: item.id,
-    professor: item.author_name || "System",
-    title: item.title,
-    content: item.content,
-    targetCourseId: item.target_course_id ? String(item.target_course_id) : "all",
-    targetCourseName: item.target_course_name || "All students",
-    date: item.created_at ? new Date(item.created_at).toLocaleString() : "",
-  }));
-}
-
-export async function getVisibleAnnouncements(user) {
-  const announcements = await getAnnouncements();
-  if (!user || user.role === "admin" || ["professor", "doctor"].includes(user.role)) return announcements;
-
-  const regs = await getRegistrations();
-  const courseIds = regs
-    .filter((item) => item.userId === user.id)
-    .map((item) => String(item.courseId));
-
-  return announcements.filter(
-    (announcement) =>
-      !announcement.targetCourseId ||
-      announcement.targetCourseId === "all" ||
-      courseIds.includes(String(announcement.targetCourseId))
-  );
-}
-
-export async function addAnnouncement(announcement) {
-  const professor = cleanText(announcement.professor);
-  const title = cleanText(announcement.title);
-  const content = cleanText(announcement.content);
-
-  if (!professor || !title || !content) {
-    return { success: false, message: "Please fill all announcement fields." };
-  }
-
-  let targetCourseName = "All students";
-  let targetCourseId = null;
-
-  if (announcement.targetCourseId && announcement.targetCourseId !== "all") {
-    const course = await getCourseById(announcement.targetCourseId);
-    targetCourseId = Number(announcement.targetCourseId);
-    targetCourseName = course ? `${course.name} (${course.code})` : "Selected course";
-  }
-
-  const { data: author } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("name", professor)
-    .maybeSingle();
-
-  const { error } = await supabase.from("announcements").insert({
-    author_id: author?.id || null,
-    author_name: professor,
-    title,
-    content,
-    audience: targetCourseId ? "course" : "all",
-    target_course_id: targetCourseId,
-    target_course_name: targetCourseName,
-  });
-
-  if (error) return { success: false, message: error.message };
-  return { success: true, message: "Announcement pushed successfully." };
-}
-
 export async function registerCourse(user, courseId) {
   if (!user || !user.id) {
     return { success: false, message: "Student account was not found." };
+  }
+
+  if (user.role !== "student") {
+    return { success: false, message: "Only students can register for courses." };
   }
 
   const course = await getCourseById(courseId);
@@ -562,96 +397,19 @@ export async function registerCourse(user, courseId) {
   return { success: true, message: "Course registered successfully." };
 }
 
-export async function dropCourse(user, courseId) {
-  if (!user || !user.id) {
-    return { success: false, message: "Student account was not found." };
-  }
+export async function getAnnouncements() {
+  const { data, error } = await supabase
+    .from("announcements")
+    .select("id, title, content, created_at")
+    .order("created_at", { ascending: false });
 
-  const { error } = await supabase
-    .from("registrations")
-    .delete()
-    .match({ user_id: user.id, course_id: Number(courseId) });
+  if (error) return [];
 
-  if (error) return { success: false, message: error.message };
-  return { success: true, message: "Course removed from registrations." };
-}
-
-export async function addCourse(course) {
-  const name = cleanText(course.name);
-  const code = cleanCode(course.code);
-  const department = cleanText(course.department);
-  const level = cleanText(course.level);
-  const credits = Number(course.credits);
-  const professor = cleanText(course.professor) || "Not assigned";
-  const scheduleDay = cleanText(course.scheduleDay);
-  const scheduleTimeSlot = cleanText(course.scheduleTimeSlot);
-
-  if (!name || !code || !department || !level || !credits || !professor) {
-    return { success: false, message: "Please fill all required course fields." };
-  }
-
-  if (!Number.isFinite(credits) || credits <= 0) {
-    return { success: false, message: "Credits must be a positive number." };
-  }
-
-  if ((scheduleDay && !scheduleTimeSlot) || (!scheduleDay && scheduleTimeSlot)) {
-    return { success: false, message: "Please enter both schedule day and schedule time slot, or leave both empty." };
-  }
-
-  const { data: exists } = await supabase
-    .from("courses")
-    .select("id")
-    .ilike("code", code)
-    .maybeSingle();
-
-  if (exists) {
-    return { success: false, message: "Course with this code already exists." };
-  }
-
-  const { data: professorProfile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("name", professor)
-    .in("role", ["professor", "doctor"])
-    .maybeSingle();
-
-  const prerequisiteCodes = toArray(course.prerequisiteCodes).map(cleanCode).filter(Boolean);
-  const payload = {
-    name,
-    code,
-    department,
-    level,
-    credits,
-    professor,
-    professor_id: professorProfile?.id || null,
-  };
-
-  if (prerequisiteCodes.length > 0) {
-    payload.prerequisite_codes = prerequisiteCodes.join(", ");
-  }
-
-  if (scheduleDay && scheduleTimeSlot) {
-    payload.schedule_day = scheduleDay;
-    payload.schedule_time_slot = scheduleTimeSlot;
-  }
-
-  let { error } = await supabase.from("courses").insert(payload);
-
-  if (error) {
-    const schemaError = error.message?.toLowerCase().includes("schema") ||
-      error.message?.toLowerCase().includes("column") ||
-      error.message?.toLowerCase().includes("prerequisite") ||
-      error.message?.toLowerCase().includes("schedule");
-
-    if (schemaError) {
-      delete payload.prerequisite_codes;
-      delete payload.schedule_day;
-      delete payload.schedule_time_slot;
-      const retry = await supabase.from("courses").insert(payload);
-      error = retry.error;
-    }
-  }
-
-  if (error) return { success: false, message: error.message };
-  return { success: true, message: "Course added successfully." };
+  return (data ?? []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    content: item.content,
+    date: item.created_at ? new Date(item.created_at).toLocaleString() : "",
+    createdAt: item.created_at || "",
+  }));
 }
